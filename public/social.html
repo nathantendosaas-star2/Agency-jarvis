@@ -1,1 +1,188 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agency Jarvis | Social</title><link rel="stylesheet" href="/css/style.css"><script src="/js/app.js" defer></script><script src="/js/social.js" defer></script></head><body><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">J</span><span>AGENCY <strong>JARVIS</strong></span></a><p class="nav-label">WORKSPACE</p><nav class="nav"><a class="nav-link" href="/">Overview</a><a class="nav-link" href="/leads.html">Leads</a><a class="nav-link" href="/outreach.html">Outreach</a><a class="nav-link" href="/workbench.html">Workbench</a><a class="nav-link" href="/social.html">Social</a></nav><p class="nav-label">SYSTEM</p><nav class="nav"><a class="nav-link" href="/settings.html">Settings</a></nav><div class="sidebar-footer"><span class="status-dot"></span> Foundation build</div></aside><main class="main-content"><header class="topbar"><div><p class="eyebrow">SOCIAL STUDIO</p><h1>Social</h1></div><a class="text-link" href="/">← Dashboard</a></header><section class="welcome-panel compact"><div><p class="eyebrow">AGENCY JARVIS</p><h2>Plan, review and schedule social content.</h2><p class="muted">The page structure is ready. Functionality will be added in its implementation step.</p></div><div class="welcome-orb" aria-hidden="true">J</div></section><section class="notice"><strong>Implementation status</strong><p>Content generation and Buffer scheduling will be implemented in Step 7.</p></section><footer class="page-footer">AGENCY JARVIS <span>Built in tested increments.</span></footer></main></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Jarvis | Social</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/app.js" defer></script>
+  <script src="/js/social.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">J</span>
+        <span>AGENCY <strong>JARVIS</strong></span>
+      </a>
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="nav">
+        <a class="nav-link" href="/">Overview</a>
+        <a class="nav-link" href="/leads.html">Leads</a>
+        <a class="nav-link" href="/outreach.html">Outreach</a>
+        <a class="nav-link" href="/workbench.html">Workbench</a>
+        <a class="nav-link active" href="/social.html">Social</a>
+      </nav>
+      <p class="nav-label">SYSTEM</p>
+      <nav class="nav">
+        <a class="nav-link" href="/settings.html">Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="status-dot"></span> System Live
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SOCIAL MEDIA STUDIO</p>
+          <h1>Social Studio</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="add-client-btn" class="action-button secondary-btn" type="button">
+            + New Client
+          </button>
+          <a class="text-link" href="/">← Dashboard</a>
+        </div>
+      </header>
+
+      <section class="welcome-panel compact">
+        <div>
+          <p class="eyebrow">CONTENT CREATION & BUFFER PUBLISHING</p>
+          <h2>Manage Clients, Generate Content, Schedule to Buffer</h2>
+          <p class="muted">Generate platform-tailored post concepts with OpenRouter. Submit to administrator review and schedule directly through Buffer's API.</p>
+        </div>
+        <div class="welcome-orb" aria-hidden="true">J</div>
+      </section>
+
+      <!-- Content Generator Card -->
+      <div class="workspace-card" style="margin-top:24px">
+        <div class="card-header">
+          <h3>1. Generate Social Content</h3>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Select Agency Client</label>
+            <select id="client-select">
+              <option value="">Loading clients…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Target Platform</label>
+            <select id="platform-select">
+              <option value="linkedin">LinkedIn (Professional & Thought Leadership)</option>
+              <option value="twitter">Twitter / X (Hooks & Threads)</option>
+              <option value="instagram">Instagram (Reels / Carousel Captions)</option>
+              <option value="facebook">Facebook (Community & Conversational)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Campaign Objective</label>
+            <input type="text" id="campaign-objective" placeholder="e.g. Lead Generation for Spring Dental Special">
+          </div>
+          <div class="form-group" style="align-self:end">
+            <button id="generate-content-btn" class="action-button primary-btn" type="button">
+              Generate Posts with OpenRouter
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Social Posts Queue & History -->
+      <section class="section-heading">
+        <div>
+          <p class="eyebrow">PUBLISHING QUEUE</p>
+          <h2>Client Posts & Publishing Status</h2>
+        </div>
+      </section>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Platform / Title</th>
+              <th>Content Snippet</th>
+              <th>Status</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="social-tbody">
+            <tr><td colspan="5" class="state-message">Loading social posts…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="page-footer">AGENCY JARVIS <span>One command centre. Human-controlled execution.</span></footer>
+    </main>
+  </div>
+
+  <!-- Add Client Modal -->
+  <div id="client-modal" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h2>Create Agency Client</h2>
+        <button id="client-close-btn" class="close-button">&times;</button>
+      </div>
+      <form id="client-form">
+        <div class="form-group">
+          <label>Client Contact Name *</label>
+          <input type="text" id="new-client-name" required placeholder="e.g. Dr. Marcus Vance">
+        </div>
+        <div class="form-group">
+          <label>Company / Brand Name *</label>
+          <input type="text" id="new-client-company" required placeholder="e.g. Vance Aesthetic Dental">
+        </div>
+        <div class="form-group">
+          <label>Industry</label>
+          <input type="text" id="new-client-industry" placeholder="e.g. Cosmetic Dentistry">
+        </div>
+        <div class="form-group">
+          <label>Website</label>
+          <input type="text" id="new-client-website" placeholder="https://vancedental.example.com">
+        </div>
+        <div class="form-group">
+          <label>Retainer Tier</label>
+          <select id="new-client-tier">
+            <option value="standard">Standard Retainer</option>
+            <option value="growth">Growth Tier</option>
+            <option value="premium">Premium Scale</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="client-cancel-btn" class="table-btn secondary">Cancel</button>
+          <button type="submit" class="action-button primary-btn">Save Client</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Buffer Schedule Modal -->
+  <div id="schedule-modal" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h2>Schedule Post to Buffer</h2>
+        <button id="schedule-close-btn" class="close-button">&times;</button>
+      </div>
+      <form id="schedule-form">
+        <input type="hidden" id="schedule-post-id">
+        <p class="muted" style="margin-top:0">Post must have administrator approval before scheduling.</p>
+        <div class="form-group">
+          <label>Select Connected Buffer Channel *</label>
+          <select id="buffer-channel-select" required>
+            <option value="">Loading Buffer channels…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Scheduled Date & Time (Optional - adds to Buffer queue if blank)</label>
+          <input type="datetime-local" id="schedule-datetime">
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="schedule-cancel-btn" class="table-btn secondary">Cancel</button>
+          <button type="submit" class="action-button primary-btn">Submit Schedule to Buffer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

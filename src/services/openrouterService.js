@@ -31,7 +31,6 @@ You MUST output valid, parseable JSON conforming EXACTLY to the following schema
 
 function sanitizeJsonResponse(text) {
   let cleaned = text.trim();
-  // Strip markdown code fences if model returned ```json ... ```
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "").trim();
   }
@@ -66,14 +65,70 @@ function validateEvaluation(data) {
   };
 }
 
+async function callOpenRouter({ messages, temperature = 0.3, responseFormat = null, model = null, maxTokens = 2000, apiKey: passedApiKey = null }) {
+  const apiKey = passedApiKey || process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is not configured.");
+  }
+
+  const selectedModel = model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
+  const endpoint = "https://openrouter.ai/api/v1/chat/completions";
+
+  const bodyPayload = {
+    model: selectedModel,
+    temperature,
+    max_tokens: maxTokens,
+    messages
+  };
+
+  if (responseFormat) {
+    bodyPayload.response_format = responseFormat;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://agencyjarvis.local",
+        "X-Title": "Agency Jarvis MVP"
+      },
+      body: JSON.stringify(bodyPayload),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      let errorDetail = "";
+      try {
+        const errJson = await response.json();
+        errorDetail = errJson.error ? (errJson.error.message || JSON.stringify(errJson.error)) : JSON.stringify(errJson);
+      } catch {
+        errorDetail = await response.text();
+      }
+      throw new Error(`OpenRouter API error (${response.status}): ${errorDetail}`);
+    }
+
+    const result = await response.json();
+    const choice = result.choices && result.choices[0];
+    if (!choice || !choice.message || !choice.message.content) {
+      throw new Error("OpenRouter returned an empty or invalid completion.");
+    }
+
+    return choice.message.content;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function evaluateLeadWithOpenRouter(lead, researchData, options = {}) {
   const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not configured.");
   }
-
-  const model = options.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
-  const endpoint = "https://openrouter.ai/api/v1/chat/completions";
 
   const leadContext = {
     business_name: lead.business_name,
@@ -104,43 +159,17 @@ ${JSON.stringify(researchContext, null, 2)}
 
 Output your evaluation strictly in the required JSON format.`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://agencyjarvis.local",
-      "X-Title": "Agency Jarvis MVP"
-    },
-    body: JSON.stringify({
-      model: model,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: REVIEW_SYSTEM_PROMPT },
-        { role: "user", content: userPrompt }
-      ]
-    })
+  const rawContent = await callOpenRouter({
+    messages: [
+      { role: "system", content: REVIEW_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt }
+    ],
+    temperature: 0.2,
+    responseFormat: { type: "json_object" },
+    model: options.model,
+    apiKey
   });
 
-  if (!response.ok) {
-    let errorDetail = "";
-    try {
-      const errJson = await response.json();
-      errorDetail = errJson.error ? (errJson.error.message || JSON.stringify(errJson.error)) : JSON.stringify(errJson);
-    } catch {
-      errorDetail = await response.text();
-    }
-    throw new Error(`OpenRouter API error (${response.status}): ${errorDetail}`);
-  }
-
-  const result = await response.json();
-  const choice = result.choices && result.choices[0];
-  if (!choice || !choice.message || !choice.message.content) {
-    throw new Error("OpenRouter returned an empty or invalid completion.");
-  }
-
-  const rawContent = choice.message.content;
   const cleanedContent = sanitizeJsonResponse(rawContent);
 
   let parsedJson;
@@ -152,7 +181,6 @@ Output your evaluation strictly in the required JSON format.`;
 
   const validated = validateEvaluation(parsedJson);
 
-  // Fallback: If AI returned empty research sources, populate from Tavily sources
   if (validated.research_sources.length === 0 && researchData.sources && researchData.sources.length > 0) {
     validated.research_sources = researchData.sources.map((s) => s.url).filter(Boolean);
   }
@@ -164,5 +192,6 @@ module.exports = {
   DEFAULT_MODEL,
   sanitizeJsonResponse,
   validateEvaluation,
+  callOpenRouter,
   evaluateLeadWithOpenRouter
 };

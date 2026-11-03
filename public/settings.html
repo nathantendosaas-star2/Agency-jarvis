@@ -1,1 +1,143 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agency Jarvis | Settings</title><link rel="stylesheet" href="/css/style.css"><script src="/js/app.js" defer></script><script src="/js/settings.js" defer></script></head><body><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">J</span><span>AGENCY <strong>JARVIS</strong></span></a><p class="nav-label">WORKSPACE</p><nav class="nav"><a class="nav-link" href="/">Overview</a><a class="nav-link" href="/leads.html">Leads</a><a class="nav-link" href="/outreach.html">Outreach</a><a class="nav-link" href="/workbench.html">Workbench</a><a class="nav-link" href="/social.html">Social</a></nav><p class="nav-label">SYSTEM</p><nav class="nav"><a class="nav-link" href="/settings.html">Settings</a></nav><div class="sidebar-footer"><span class="status-dot"></span> Foundation build</div></aside><main class="main-content"><header class="topbar"><div><p class="eyebrow">SYSTEM CONFIGURATION</p><h1>Settings</h1></div><a class="text-link" href="/">← Dashboard</a></header><section class="welcome-panel compact"><div><p class="eyebrow">AGENCY JARVIS</p><h2>Manage the services that power Agency Jarvis.</h2><p class="muted">The page structure is ready. Functionality will be added in its implementation step.</p></div><div class="welcome-orb" aria-hidden="true">J</div></section><section class="notice"><strong>Implementation status</strong><p>Integration configuration and connection tests will be added with each integration.</p></section><footer class="page-footer">AGENCY JARVIS <span>Built in tested increments.</span></footer></main></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Jarvis | Settings</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/app.js" defer></script>
+  <script src="/js/settings.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">J</span>
+        <span>AGENCY <strong>JARVIS</strong></span>
+      </a>
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="nav">
+        <a class="nav-link" href="/">Overview</a>
+        <a class="nav-link" href="/leads.html">Leads</a>
+        <a class="nav-link" href="/outreach.html">Outreach</a>
+        <a class="nav-link" href="/workbench.html">Workbench</a>
+        <a class="nav-link" href="/social.html">Social</a>
+      </nav>
+      <p class="nav-label">SYSTEM</p>
+      <nav class="nav">
+        <a class="nav-link active" href="/settings.html">Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="status-dot"></span> System Live
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SYSTEM CONFIGURATION</p>
+          <h1>Settings & Integrations</h1>
+        </div>
+        <a class="text-link" href="/">← Dashboard</a>
+      </header>
+
+      <section class="welcome-panel compact">
+        <div>
+          <p class="eyebrow">INTEGRATION HEALTH</p>
+          <h2>Manage Connected Agency Services</h2>
+          <p class="muted">Check operational status and run non-destructive connection tests for database, AI gateway, search, SMTP, and social publishing.</p>
+        </div>
+        <div class="welcome-orb" aria-hidden="true">J</div>
+      </section>
+
+      <!-- Integrations Matrix Grid -->
+      <section class="service-grid" style="margin-top:24px">
+        <!-- Supabase -->
+        <div class="service-card">
+          <div class="service-header">
+            <h4>Supabase PostgreSQL</h4>
+            <span id="badge-supabase" class="status-badge status-new">Checking…</span>
+          </div>
+          <p class="service-desc">Stores agency leads, research evidence, deliverables, and approval states.</p>
+          <div class="service-actions">
+            <button class="table-btn secondary" id="test-supabase-btn">Test Connection</button>
+            <span id="res-supabase" class="test-result-text"></span>
+          </div>
+        </div>
+
+        <!-- OpenRouter -->
+        <div class="service-card">
+          <div class="service-header">
+            <h4>OpenRouter AI</h4>
+            <span id="badge-openrouter" class="status-badge status-new">Checking…</span>
+          </div>
+          <p class="service-desc">Powers lead qualification, email copy, briefs, and social content generation.</p>
+          <div class="service-actions">
+            <button class="table-btn secondary" id="test-openrouter-btn">Test Ping</button>
+            <span id="res-openrouter" class="test-result-text"></span>
+          </div>
+        </div>
+
+        <!-- Tavily -->
+        <div class="service-card">
+          <div class="service-header">
+            <h4>Tavily Web Search</h4>
+            <span id="badge-tavily" class="status-badge status-new">Checking…</span>
+          </div>
+          <p class="service-desc">Performs deep web intelligence and evidence gathering on prospects.</p>
+          <div class="service-actions">
+            <button class="table-btn secondary" id="test-tavily-btn">Test Query</button>
+            <span id="res-tavily" class="test-result-text"></span>
+          </div>
+        </div>
+
+        <!-- SMTP -->
+        <div class="service-card">
+          <div class="service-header">
+            <h4>SMTP Email Service</h4>
+            <span id="badge-smtp" class="status-badge status-new">Checking…</span>
+          </div>
+          <p class="service-desc">Sends approved outbound cold outreach to prospective clients.</p>
+          <div class="service-actions">
+            <button class="table-btn secondary" id="test-smtp-btn">Verify SMTP</button>
+            <span id="res-smtp" class="test-result-text"></span>
+          </div>
+        </div>
+
+        <!-- Buffer -->
+        <div class="service-card">
+          <div class="service-header">
+            <h4>Buffer Publishing</h4>
+            <span id="badge-buffer" class="status-badge status-new">Checking…</span>
+          </div>
+          <p class="service-desc">Schedules approved social media posts across LinkedIn, Twitter, and Facebook.</p>
+          <div class="service-actions">
+            <button class="table-btn secondary" id="test-buffer-btn">Test Channels</button>
+            <span id="res-buffer" class="test-result-text"></span>
+          </div>
+        </div>
+
+        <!-- Google Sheets -->
+        <div class="service-card">
+          <div class="service-header">
+            <h4>Google Sheets Ingestion</h4>
+            <span id="badge-sheets" class="status-badge status-new">Checking…</span>
+          </div>
+          <p class="service-desc">Ingests leads captured from Google Forms or client intake sheets.</p>
+          <div class="service-actions">
+            <a href="/leads.html" class="table-btn secondary">Import In Leads</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Configuration Guide Notice -->
+      <section class="notice" style="margin-top:32px">
+        <strong>Secret Safety Notice</strong>
+        <p>Agency Jarvis keeps all API credentials server-side. For production deployments on Render, configure environment variables in your Render Service Dashboard.</p>
+      </section>
+
+      <footer class="page-footer">AGENCY JARVIS <span>One command centre. Human-controlled execution.</span></footer>
+    </main>
+  </div>
+</body>
+</html>

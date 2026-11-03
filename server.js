@@ -6,6 +6,13 @@ const path = require("path");
 const cookieSession = require("cookie-session");
 const { createAuthRouter } = require("./src/routes/auth");
 const { createLeadsRouter } = require("./src/routes/leads");
+const { createClientsRouter } = require("./src/routes/clients");
+const { createOutreachRouter } = require("./src/routes/outreach");
+const { createWorkbenchRouter } = require("./src/routes/workbench");
+const { createSocialRouter } = require("./src/routes/social");
+const { createApprovalsRouter } = require("./src/routes/approvals");
+const { createDashboardRouter } = require("./src/routes/dashboard");
+const { createSettingsRouter } = require("./src/routes/settings");
 const { requireAdmin } = require("./src/middleware/auth");
 
 const app = express();
@@ -24,8 +31,8 @@ if (IS_PRODUCTION) app.set("trust proxy", 1);
 
 app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(express.json({ limit: "20kb" }));
-app.use(express.urlencoded({ extended: false, limit: "20kb" }));
+app.use(express.json({ limit: "50kb" }));
+app.use(express.urlencoded({ extended: false, limit: "50kb" }));
 
 app.use(cookieSession({
   name: "agency_jarvis_session",
@@ -57,8 +64,18 @@ app.get("/js/login.js", (_req, res) => {
 
 app.use("/api/auth", createAuthRouter());
 
+// All following routes require administrator authentication
 app.use(requireAdmin);
+
+app.use("/api/dashboard", createDashboardRouter());
 app.use("/api/leads", createLeadsRouter());
+app.use("/api/clients", createClientsRouter());
+app.use("/api/outreach", createOutreachRouter());
+app.use("/api/workbench", createWorkbenchRouter());
+app.use("/api/social", createSocialRouter());
+app.use("/api/approvals", createApprovalsRouter());
+app.use("/api/settings", createSettingsRouter());
+
 app.use(express.static(publicDirectory, {
   extensions: ["html"],
   index: "index.html",
@@ -68,6 +85,10 @@ app.use(express.static(publicDirectory, {
 app.use("/api", (_req, res) => res.status(404).json({ error: "API endpoint not found." }));
 app.use((_req, res) => res.status(404).sendFile(path.join(publicDirectory, "404.html")));
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Agency Jarvis is running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Agency Jarvis is running on port ${PORT}`);
+  });
+}
+
+module.exports = { app };
