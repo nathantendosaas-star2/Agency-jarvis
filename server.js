@@ -5,6 +5,7 @@ const helmet = require("helmet");
 const path = require("path");
 const cookieSession = require("cookie-session");
 const { createAuthRouter } = require("./src/routes/auth");
+const { createLeadsRouter } = require("./src/routes/leads");
 const { requireAdmin } = require("./src/middleware/auth");
 
 const app = express();
@@ -57,6 +58,7 @@ app.get("/js/login.js", (_req, res) => {
 app.use("/api/auth", createAuthRouter());
 
 app.use(requireAdmin);
+app.use("/api/leads", createLeadsRouter());
 app.use(express.static(publicDirectory, {
   extensions: ["html"],
   index: "index.html",

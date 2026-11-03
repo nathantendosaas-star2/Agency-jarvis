@@ -1,3 +1,104 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agency Jarvis | Dashboard</title><link rel="stylesheet" href="/css/style.css"><script src="/js/app.js" defer></script></head>
-<body><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">J</span><span>AGENCY <strong>JARVIS</strong></span></a><p class="nav-label">WORKSPACE</p><nav class="nav"><a class="nav-link active" href="/">Overview</a><a class="nav-link" href="/leads.html">Leads</a><a class="nav-link" href="/outreach.html">Outreach</a><a class="nav-link" href="/workbench.html">Workbench</a><a class="nav-link" href="/social.html">Social</a></nav><p class="nav-label">SYSTEM</p><nav class="nav"><a class="nav-link" href="/settings.html">Settings</a></nav><div class="sidebar-footer"><span class="status-dot"></span> Foundation build</div></aside><main class="main-content"><header class="topbar"><div><p class="eyebrow">AGENCY OPERATIONS</p><h1>Dashboard</h1></div><span class="status-pill">MVP · Step 1</span></header><section class="welcome-panel"><div><p class="eyebrow">COMMAND OVERVIEW</p><h2>Your agency, in one place.</h2><p class="muted">The application foundation is running. Core workflows will be activated step by step.</p></div><div class="welcome-orb">J</div></section><section class="section-heading"><div><p class="eyebrow">WORKSPACE</p><h2>Modules</h2></div></section><section class="module-grid"><a class="module-card" href="/leads.html"><span class="module-number">01</span><h3>Lead pipeline</h3><p>Capture, review and qualify prospects.</p><span class="module-link">Open leads →</span></a><a class="module-card" href="/outreach.html"><span class="module-number">02</span><h3>Outreach</h3><p>Prepare prospect communication.</p><span class="module-link">Open outreach →</span></a><a class="module-card" href="/workbench.html"><span class="module-number">03</span><h3>Workbench</h3><p>Submit tasks to Jarvis.</p><span class="module-link">Open workbench →</span></a><a class="module-card" href="/social.html"><span class="module-number">04</span><h3>Social studio</h3><p>Prepare and manage social content.</p><span class="module-link">Open social →</span></a></section><section class="notice"><strong>Build status</strong><p>This is the Step 1 foundation. No lead data, AI responses, email sending or social publishing is simulated. Authentication is added in Step 2.</p></section><footer class="page-footer">AGENCY JARVIS <span>One command centre. Human-controlled execution.</span></footer></main></div></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Jarvis | Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/app.js" defer></script>
+  <script src="/js/dashboard.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">J</span>
+        <span>AGENCY <strong>JARVIS</strong></span>
+      </a>
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="nav">
+        <a class="nav-link active" href="/">Overview</a>
+        <a class="nav-link" href="/leads.html">Leads</a>
+        <a class="nav-link" href="/outreach.html">Outreach</a>
+        <a class="nav-link" href="/workbench.html">Workbench</a>
+        <a class="nav-link" href="/social.html">Social</a>
+      </nav>
+      <p class="nav-label">SYSTEM</p>
+      <nav class="nav">
+        <a class="nav-link" href="/settings.html">Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="status-dot"></span> Foundation build
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">AGENCY OPERATIONS</p>
+          <h1>Dashboard</h1>
+        </div>
+        <span class="status-pill">MVP · Active</span>
+      </header>
+
+      <section class="welcome-panel">
+        <div>
+          <p class="eyebrow">COMMAND OVERVIEW</p>
+          <h2>Your agency, in one place.</h2>
+          <p class="muted">Prospect acquisition and research active: Supabase storage, Google Sheets ingestion, and OpenRouter + Tavily AI qualification.</p>
+        </div>
+        <div class="welcome-orb">J</div>
+      </section>
+
+      <section class="dashboard-stats-grid">
+        <div class="stat-card">
+          <p class="eyebrow">PIPELINE PROSPECTS</p>
+          <div class="stat-value" id="stat-leads-count">—</div>
+          <p class="stat-note">Total prospects in database</p>
+        </div>
+        <div class="stat-card">
+          <p class="eyebrow">AI RESEARCHED</p>
+          <div class="stat-value" id="stat-researched-count">—</div>
+          <p class="stat-note">Evaluated with Tavily & OpenRouter</p>
+        </div>
+      </section>
+
+      <section class="section-heading">
+        <div>
+          <p class="eyebrow">WORKSPACE</p>
+          <h2>Modules</h2>
+        </div>
+      </section>
+
+      <section class="module-grid">
+        <a class="module-card" href="/leads.html">
+          <span class="module-number">01</span>
+          <h3>Lead pipeline</h3>
+          <p>Capture, review and qualify prospects.</p>
+          <span class="module-link">Open leads →</span>
+        </a>
+        <a class="module-card" href="/outreach.html">
+          <span class="module-number">02</span>
+          <h3>Outreach</h3>
+          <p>Prepare prospect communication.</p>
+          <span class="module-link">Open outreach →</span>
+        </a>
+        <a class="module-card" href="/workbench.html">
+          <span class="module-number">03</span>
+          <h3>Workbench</h3>
+          <p>Submit tasks to Jarvis.</p>
+          <span class="module-link">Open workbench →</span>
+        </a>
+        <a class="module-card" href="/social.html">
+          <span class="module-number">04</span>
+          <h3>Social studio</h3>
+          <p>Prepare and manage social content.</p>
+          <span class="module-link">Open social →</span>
+        </a>
+      </section>
+
+      <footer class="page-footer">AGENCY JARVIS <span>One command centre. Human-controlled execution.</span></footer>
+    </main>
+  </div>
+</body>
+</html>
