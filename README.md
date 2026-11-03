@@ -1,19 +1,43 @@
 # Agency Jarvis
 
-MVP application: plain HTML, CSS and vanilla JavaScript frontend; Node.js + Express backend; Supabase PostgreSQL; single administrator password authentication; deployed on Render.
+Agency Jarvis is a new MVP codebase for an SMMA operating workspace.
 
-## Local setup
+## Approved stack
 
-1. Install Node.js 20+.
+- Frontend: plain HTML5, CSS3 and vanilla browser JavaScript
+- Backend: Node.js 20+ and Express
+- Database: Supabase PostgreSQL (connection is a later implementation step)
+- Authentication: one administrator password (to be implemented in Step 2)
+- Hosting: Render
+- Version control: GitHub
+
+## Run locally
+
+1. Install Node.js 20 or newer.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env`.
 4. Run `npm run dev`.
-5. Open http://localhost:10000.
+5. Visit http://localhost:10000.
+6. Check http://localhost:10000/health for the server health response.
 
-## Deployment
+## Deploy
 
-Connect this repository to Render using the included `render.yaml`. Configure secrets in Render Environment settings. Never commit `.env`.
+The repository includes `render.yaml` for a Render Blueprint deployment. Configure production secrets in Render Environment settings. Never commit `.env`.
 
-## Build status
+## Implementation status
 
-Step 1 foundation. Authentication and integrations are not active yet; complete those before using this as a private production app.
+This repository currently contains **Step 1: project foundation**. The Express server serves the static HTML/CSS/JS pages and exposes a health endpoint. The other pages are structural shells.
+
+**Important:** Authentication, database access and integrations are not implemented yet. Do not expose this foundation as a private production app until Step 2 authentication and route protection are complete.
+
+## Planned build sequence
+
+1. Project foundation
+2. Password authentication, secure sessions and protected routes
+3. Supabase schema and connection
+4. Google Sheets lead ingestion
+5. OpenRouter + Tavily lead review
+6. SMTP outreach with explicit approvals
+7. Buffer social content and scheduling with approval
+8. Workbench and design brief workflow
+9. Render production deployment and testing
