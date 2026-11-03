@@ -1,4 +1,4 @@
-const DEFAULT_MODEL = "openai/gpt-4o-mini";
+const DEFAULT_MODEL = "google/gemma-4-26b-a4b-it:free";
 
 const REVIEW_SYSTEM_PROMPT = `You are Agency Jarvis's Senior SMMA Lead Qualification and Research Specialist.
 Your task is to analyze prospective businesses for Social Media Marketing Agency (SMMA) services based strictly on the provided lead details and web research results.
