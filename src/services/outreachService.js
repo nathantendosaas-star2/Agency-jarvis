@@ -106,8 +106,8 @@ async function sendApprovedOutreach(outreachId) {
   }
 
   // Atomically consume the approved decision before calling SMTP.
-  const approval = await claimApprovalForExecution("outreach", outreachId, "send_email");
-  if (!approval) throw new Error("Backend Approval Error: no unused administrator approval exists for this email.");
+  const approval = await claimApprovalForExecution("outreach", outreachId, "send_email", { to: record.recipient, subject: record.subject, body: record.message_body });
+  if (!approval) throw new Error("Backend Approval Error: no current, matching administrator approval exists for this email.");
 
   try {
     const sendResult = await sendOutboundEmail({

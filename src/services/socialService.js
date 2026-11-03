@@ -103,8 +103,8 @@ async function scheduleApprovedSocialPost(socialPostId, bufferProfileIds, schedu
   }
 
   // Atomically consume the approved decision before calling Buffer.
-  const approval = await claimApprovalForExecution("social", socialPostId, "schedule_post");
-  if (!approval) throw new Error("Backend Approval Error: no unused administrator approval exists for this post.");
+  const approval = await claimApprovalForExecution("social", socialPostId, "schedule_post", { platforms: post.platforms, content: post.content });
+  if (!approval) throw new Error("Backend Approval Error: no current, matching administrator approval exists for this post.");
 
   try {
     const bufferRes = await scheduleBufferPost({

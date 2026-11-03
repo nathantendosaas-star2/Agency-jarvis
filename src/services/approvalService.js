@@ -38,14 +38,15 @@ async function updateApprovalDecision(id, decision, decisionNotes = "") {
   return data;
 }
 // Compare-and-set prevents concurrent requests from using the same approval.
-async function claimApprovalForExecution(entityType, entityId, actionType) {
+async function claimApprovalForExecution(entityType, entityId, actionType, expectedPayload = null) {
   if (!isSupabaseConfigured()) return null;
   const client = getSupabaseClient();
-  const { data: candidate, error: readError } = await client.from("approvals").select("id")
+  const { data: candidate, error: readError } = await client.from("approvals").select("id,payload,status")
     .eq("entity_type", entityType).eq("entity_id", entityId).eq("action_type", actionType)
-    .eq("status", "approved").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (readError) throw readError;
-  if (!candidate) return null;
+  if (!candidate || candidate.status !== "approved") return null;
+  if (expectedPayload && Object.entries(expectedPayload).some(([key, value]) => JSON.stringify(candidate.payload?.[key]) !== JSON.stringify(value))) return null;
   const { data, error } = await client.from("approvals").update({ status: "executing" })
     .eq("id", candidate.id).eq("status", "approved").select().maybeSingle();
   if (error) throw error;
@@ -64,7 +65,7 @@ async function verifyApprovalGranted(entityType, entityId, actionType) {
   if (!isSupabaseConfigured()) return false;
   const { data, error } = await getSupabaseClient().from("approvals").select("id")
     .eq("entity_type", entityType).eq("entity_id", entityId).eq("action_type", actionType)
-    .eq("status", "approved").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw error;
   return Boolean(data);
 }
