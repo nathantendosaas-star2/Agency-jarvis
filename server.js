@@ -12,8 +12,8 @@ const PORT = Number(process.env.PORT || 10000);
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const publicDirectory = path.join(__dirname, "public");
 
-if (!process.env.ADMIN_PASSWORD_HASH) {
-  throw new Error("ADMIN_PASSWORD_HASH is required. Run npm run hash-password and add the result to .env.");
+if (!/^\$2[aby]\$\d{2}\$/.test(process.env.ADMIN_PASSWORD_HASH || "")) {
+  throw new Error("ADMIN_PASSWORD_HASH must be a bcrypt hash. Run npm run hash-password and add the result to .env.");
 }
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
   throw new Error("SESSION_SECRET is required and must contain at least 32 characters.");
