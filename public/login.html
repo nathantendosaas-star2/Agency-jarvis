@@ -1,1 +1,26 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agency Jarvis | Login</title><link rel="stylesheet" href="/css/style.css"></head><body class="login-page"><main class="login-card"><a class="brand login-brand" href="/"><span class="brand-mark">J</span><span>AGENCY <strong>JARVIS</strong></span></a><p class="eyebrow">ADMINISTRATOR ACCESS</p><h1>Welcome back.</h1><p class="muted">Password authentication will be implemented in Step 2. This page is currently a visual shell and does not authenticate users.</p><div class="notice"><strong>Not active yet</strong><p>Do not deploy this foundation as a private production application until Step 2 authentication is complete.</p></div><a class="button-link" href="/">Return to dashboard</a></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Agency Jarvis | Administrator Login</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/login.js" defer></script>
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <a class="brand login-brand" href="/login"><span class="brand-mark">J</span><span>AGENCY <strong>JARVIS</strong></span></a>
+    <p class="eyebrow">ADMINISTRATOR ACCESS</p>
+    <h1>Welcome back.</h1>
+    <p class="muted">Sign in to access your agency workspace.</p>
+    <form id="login-form" class="login-form">
+      <label for="password">Administrator password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required minlength="1" maxlength="200" autofocus>
+      <p id="login-error" class="login-error" role="alert" aria-live="polite"></p>
+      <button id="login-button" class="login-submit" type="submit">Sign in <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="login-footnote">Private administrator workspace</p>
+  </main>
+</body>
+</html>
