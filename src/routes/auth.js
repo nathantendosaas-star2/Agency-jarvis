@@ -20,7 +20,8 @@ function requireSameOrigin(req, res, next) {
   try {
     const parsed = new URL(origin);
     const expectedHost = req.get("host");
-    if (parsed.host !== expectedHost) {
+    const expectedOrigin = `${req.protocol}://${expectedHost}`;
+    if (parsed.origin !== expectedOrigin) {
       return res.status(403).json({ error: "Origin check failed." });
     }
     return next();
