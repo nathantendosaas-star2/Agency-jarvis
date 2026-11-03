@@ -6,38 +6,56 @@ Agency Jarvis is a new MVP codebase for an SMMA operating workspace.
 
 - Frontend: plain HTML5, CSS3 and vanilla browser JavaScript
 - Backend: Node.js 20+ and Express
-- Database: Supabase PostgreSQL (connection is a later implementation step)
-- Authentication: one administrator password (to be implemented in Step 2)
+- Database: Supabase PostgreSQL (Step 3)
+- Authentication: one administrator password with a bcrypt hash and signed HTTP-only session cookie
 - Hosting: Render
 - Version control: GitHub
 
-## Run locally
+## Local setup
 
 1. Install Node.js 20 or newer.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env`.
-4. Run `npm run dev`.
-5. Visit http://localhost:10000.
-6. Check http://localhost:10000/health for the server health response.
+4. Generate a password hash using `npm run hash-password` in a terminal.
+5. Put the generated hash in `ADMIN_PASSWORD_HASH` in `.env`.
+6. Generate a session secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` and put it in `SESSION_SECRET`.
+7. Run `npm run dev`.
+8. Visit http://localhost:10000. The application should redirect to the login page.
+9. Check http://localhost:10000/health for the server health response.
 
-## Deploy
+## Step 2 authentication
 
-The repository includes `render.yaml` for a Render Blueprint deployment. Configure production secrets in Render Environment settings. Never commit `.env`.
+- Administrator password is verified on the server using bcrypt.
+- Passwords are never stored as plaintext.
+- Session is stored in a signed, HTTP-only, SameSite=Strict cookie with an eight-hour lifetime.
+- The cookie is marked Secure in production (HTTPS).
+- Login is limited to five attempts per IP in a rolling 15-minute window.
+- Login and logout POST requests require a matching same-origin header.
+- All application pages and future API routes are protected; `/login`, its required static assets, `/api/auth/login`, `/api/auth/logout`, and `/health` remain public.
+- Logout clears the session cookie.
 
-## Implementation status
+## Render deployment
 
-This repository currently contains **Step 1: project foundation**. The Express server serves the static HTML/CSS/JS pages and exposes a health endpoint. The other pages are structural shells.
+Connect the repository to Render using `render.yaml`. Add these environment variables in the Render service dashboard:
 
-**Important:** Authentication, database access and integrations are not implemented yet. Do not expose this foundation as a private production app until Step 2 authentication and route protection are complete.
+- `NODE_ENV=production`
+- `ADMIN_PASSWORD_HASH`: generated locally with `npm run hash-password`
+- `SESSION_SECRET`: a fresh random value of at least 32 characters
 
-## Planned build sequence
+Do not add your actual password, password hash, session secret, or `.env` file to GitHub. Use Render's environment settings. Render must serve the app over HTTPS for the Secure cookie to work.
 
-1. Project foundation
-2. Password authentication, secure sessions and protected routes
-3. Supabase schema and connection
-4. Google Sheets lead ingestion
-5. OpenRouter + Tavily lead review
-6. SMTP outreach with explicit approvals
-7. Buffer social content and scheduling with approval
-8. Workbench and design brief workflow
-9. Render production deployment and testing
+## Current implementation status
+
+- **Step 1 — Project foundation:** Express server, static frontend shell, Render configuration and health endpoint.
+- **Step 2 — Administrator authentication:** implemented in the codebase; perform the local verification checklist before deployment.
+- **Step 3 — Supabase schema and connection:** next.
+- Step 4 — Google Sheets lead ingestion.
+- Step 5 — OpenRouter + Tavily lead review.
+- Step 6 — SMTP outreach with explicit approvals.
+- Step 7 — Buffer social content and scheduling with approval.
+- Step 8 — Workbench and design brief workflow.
+- Step 9 — Render production deployment and testing.
+
+## Security note
+
+The login limiter currently uses an in-memory store, appropriate for this single-instance MVP. If multiple instances are introduced, move rate-limit state to a shared store. Rotating `SESSION_SECRET` invalidates existing sessions.
