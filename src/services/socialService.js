@@ -1,7 +1,7 @@
 const { getSupabaseClient, isSupabaseConfigured } = require("../config/supabase");
 const { generateSocialContent, generateContentCalendar } = require("../agents/socialAgent");
 const { getClientById } = require("./clientsService");
-const { createApprovalRequest, verifyApprovalGranted, markApprovalExecuted } = require("./approvalService");
+const { createApprovalRequest, claimApprovalForExecution, markApprovalExecuted } = require("./approvalService");
 const { scheduleBufferPost, getBufferProfiles } = require("./bufferService");
 const { logActivity } = require("./activityService");
 
@@ -102,11 +102,9 @@ async function scheduleApprovedSocialPost(socialPostId, bufferProfileIds, schedu
     throw new Error("Duplicate scheduling prevented: Post already scheduled or published.");
   }
 
-  // Backend Approval Check
-  const isApproved = await verifyApprovalGranted("social", socialPostId, "schedule_post");
-  if (!isApproved) {
-    throw new Error("Backend Approval Error: Post has not been approved by an administrator.");
-  }
+  // Atomically consume the approved decision before calling Buffer.
+  const approval = await claimApprovalForExecution("social", socialPostId, "schedule_post");
+  if (!approval) throw new Error("Backend Approval Error: no unused administrator approval exists for this post.");
 
   try {
     const bufferRes = await scheduleBufferPost({
@@ -135,18 +133,7 @@ async function scheduleApprovedSocialPost(socialPostId, bufferProfileIds, schedu
       if (error) throw error;
       updatedPost = data;
 
-      // Mark approval executed
-      const { data: approvals } = await getSupabaseClient()
-        .from("approvals")
-        .select("id")
-        .eq("entity_type", "social")
-        .eq("entity_id", socialPostId)
-        .eq("status", "approved")
-        .limit(1);
-
-      if (approvals && approvals.length > 0) {
-        await markApprovalExecuted(approvals[0].id, bufferRes);
-      }
+      await markApprovalExecuted(approval.id, bufferRes);
     }
 
     return {
@@ -156,10 +143,8 @@ async function scheduleApprovedSocialPost(socialPostId, bufferProfileIds, schedu
     };
   } catch (err) {
     if (isSupabaseConfigured()) {
-      await getSupabaseClient()
-        .from("social_content")
-        .update({ status: "failed", failure_reason: err.message })
-        .eq("id", socialPostId);
+      // Keep the approval claim locked if Buffer may have accepted the post.
+      await getSupabaseClient().from("social_content").update({ status: "failed", failure_reason: err.message }).eq("id", socialPostId);
     }
     throw err;
   }

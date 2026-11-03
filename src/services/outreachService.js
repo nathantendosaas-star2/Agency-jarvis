@@ -2,7 +2,7 @@ const { getSupabaseClient, isSupabaseConfigured } = require("../config/supabase"
 const { generateOutreachDraft, classifyProspectReply } = require("../agents/outreachAgent");
 const { getLeadById, updateLead } = require("./leadsService");
 const { getResearchByLeadId } = require("./researchService");
-const { createApprovalRequest, verifyApprovalGranted, markApprovalExecuted } = require("./approvalService");
+const { createApprovalRequest, claimApprovalForExecution, markApprovalExecuted } = require("./approvalService");
 const { sendOutboundEmail } = require("./smtpService");
 const { logActivity } = require("./activityService");
 
@@ -105,11 +105,9 @@ async function sendApprovedOutreach(outreachId) {
     throw new Error("Duplicate send prevented: This email was already marked as sent.");
   }
 
-  // Backend Approval Verification
-  const isApproved = await verifyApprovalGranted("outreach", outreachId, "send_email");
-  if (!isApproved) {
-    throw new Error("Backend Approval Error: This email has not received administrator approval.");
-  }
+  // Atomically consume the approved decision before calling SMTP.
+  const approval = await claimApprovalForExecution("outreach", outreachId, "send_email");
+  if (!approval) throw new Error("Backend Approval Error: no unused administrator approval exists for this email.");
 
   try {
     const sendResult = await sendOutboundEmail({
@@ -137,19 +135,7 @@ async function sendApprovedOutreach(outreachId) {
       // Update lead status to contacted
       await updateLead(record.lead_id, { lead_status: "contacted" });
 
-      // Mark approval as executed
-      const { data: approvals } = await getSupabaseClient()
-        .from("approvals")
-        .select("id")
-        .eq("entity_type", "outreach")
-        .eq("entity_id", outreachId)
-        .eq("action_type", "send_email")
-        .eq("status", "approved")
-        .limit(1);
-
-      if (approvals && approvals.length > 0) {
-        await markApprovalExecuted(approvals[0].id, sendResult);
-      }
+      await markApprovalExecuted(approval.id, sendResult);
     }
 
     return {
@@ -159,10 +145,8 @@ async function sendApprovedOutreach(outreachId) {
     };
   } catch (err) {
     if (isSupabaseConfigured()) {
-      await getSupabaseClient()
-        .from("outreach_records")
-        .update({ status: "failed", error_message: err.message })
-        .eq("id", outreachId);
+      // Keep the approval claim locked: SMTP may have accepted the message before a timeout.
+      await getSupabaseClient().from("outreach_records").update({ status: "failed", error_message: err.message }).eq("id", outreachId);
     }
     throw err;
   }

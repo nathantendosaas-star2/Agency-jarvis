@@ -61,12 +61,12 @@ Agency Jarvis uses Supabase PostgreSQL. Migrations are organized sequentially in
 
 1. `001_initial_schema.sql` — Baseline schema (`leads`, `lead_research`, `outreach_records`, `social_content`, `app_settings`).
 2. `002_lead_reviewer_compatibility.sql` — Compatibility enhancements for lead qualification fields.
-3. `003_mvp_extensions.sql` — Adds `clients`, `workbench_tasks`, `approvals`, `activity_logs`, and audit columns for outreach and social tables.
+3. `003_mvp_extensions.sql` — Adds client/workbench/approval/activity tables, audit columns, one-use approval execution state, and RLS/direct-access restrictions.
 
 ### Applying Migrations
 - Log into your Supabase Dashboard → SQL Editor.
 - If running on a new instance, execute `001_initial_schema.sql`, `002_lead_reviewer_compatibility.sql`, and `003_mvp_extensions.sql`.
-- Migration `003_mvp_extensions.sql` is strictly additive and non-destructive.
+- Migration 003 adds tables/columns and security settings, but also replaces lead-status checks and adds an approval-state check. Review it before applying. This code change does not apply it to your live database.
 
 ---
 
@@ -117,7 +117,7 @@ The test suite utilizes Node's built-in test runner (`node:test`) and mocks all 
 
 ## 7. Render Web Service Deployment
 
-Agency Jarvis is pre-configured for Render via `render.yaml` or as a standard Node Web Service:
+Deploy Agency Jarvis as a standard Node Web Service:
 
 1. Create a **New Web Service** on Render connected to this repository.
 2. Configure settings:

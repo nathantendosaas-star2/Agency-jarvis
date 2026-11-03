@@ -127,3 +127,27 @@ CREATE TRIGGER set_approvals_updated_at
   BEFORE UPDATE ON public.approvals
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+
+-- One-use approval execution state. Executing approvals cannot be reused.
+ALTER TABLE public.approvals DROP CONSTRAINT IF EXISTS approvals_status_check;
+ALTER TABLE public.approvals ADD CONSTRAINT approvals_status_check
+  CHECK (status IN ('pending', 'approved', 'rejected', 'executing', 'executed', 'cancelled'));
+
+-- The server uses the service_role key only. Browser roles receive no table privileges.
+ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lead_research ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.outreach_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.social_content ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workbench_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.approvals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.leads, public.lead_research, public.outreach_records,
+  public.social_content, public.app_settings, public.clients, public.workbench_tasks,
+  public.approvals, public.activity_logs FROM anon, authenticated;
+GRANT ALL ON TABLE public.leads, public.lead_research, public.outreach_records,
+  public.social_content, public.app_settings, public.clients, public.workbench_tasks,
+  public.approvals, public.activity_logs TO service_role;

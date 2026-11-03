@@ -1,118 +1,54 @@
 const { logActivity } = require("./activityService");
-
+const BUFFER_ENDPOINT = "https://api.buffer.com";
 function getBufferConfig() {
   const token = process.env.BUFFER_ACCESS_TOKEN;
-  return {
-    accessToken: token,
-    isConfigured: Boolean(token && token.trim().length > 0)
-  };
+  return { accessToken: token, isConfigured: Boolean(token && token.trim()) };
 }
-
+async function bufferGraphQL(query, accessToken = process.env.BUFFER_ACCESS_TOKEN) {
+  if (!accessToken) throw new Error("BUFFER_ACCESS_TOKEN is not configured.");
+  const res = await fetch(BUFFER_ENDPOINT, { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`Buffer API error (${res.status}): ${JSON.stringify(payload)}`);
+  if (payload.errors?.length) throw new Error(`Buffer GraphQL error: ${payload.errors.map(e => e.message).join("; ")}`);
+  return payload.data || {};
+}
 async function getBufferProfiles(accessToken = process.env.BUFFER_ACCESS_TOKEN) {
-  if (!accessToken) {
-    throw new Error("BUFFER_ACCESS_TOKEN is not configured.");
+  const accountData = await bufferGraphQL("query AgencyJarvisOrganizations { account { organizations { id name } } }", accessToken);
+  const organizations = accountData.account?.organizations || [];
+  const channels = [];
+  for (const organization of organizations) {
+    const data = await bufferGraphQL(`query AgencyJarvisChannels { channels(input: { organizationId: ${JSON.stringify(organization.id)} }) { id name service displayName descriptor } }`, accessToken);
+    for (const channel of (data.channels || [])) channels.push({ ...channel, organization_id: organization.id, organization_name: organization.name, service_username: channel.displayName || channel.descriptor || channel.name });
   }
-
-  const endpoint = "https://api.bufferapp.com/1/profiles.json";
-  const res = await fetch(endpoint, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
-    }
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Buffer API error (${res.status}): ${errorText}`);
-  }
-
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  return channels;
 }
-
 async function scheduleBufferPost({ profileIds, text, mediaUrls = [], scheduledAt = null }) {
-  const accessToken = process.env.BUFFER_ACCESS_TOKEN;
-  if (!accessToken) {
-    throw new Error("BUFFER_ACCESS_TOKEN is not configured.");
+  if (!Array.isArray(profileIds) || !profileIds.length) throw new Error("At least one Buffer channel ID must be specified.");
+  if (!text || !text.trim()) throw new Error("Post text cannot be empty.");
+  if (mediaUrls.length) throw new Error("Media scheduling is not supported by this text-only Buffer workflow.");
+  const posts = [];
+  for (const channelId of profileIds) {
+    let schedule;
+    if (scheduledAt) {
+      const date = new Date(scheduledAt);
+      if (!Number.isFinite(date.getTime()) || date.getTime() <= Date.now()) throw new Error("Scheduled time must be a valid future date.");
+      schedule = `mode: customScheduled, dueAt: ${JSON.stringify(date.toISOString())}`;
+    } else schedule = "mode: addToQueue";
+    const query = `mutation AgencyJarvisCreatePost { createPost(input: { text: ${JSON.stringify(text.trim())}, channelId: ${JSON.stringify(channelId)}, schedulingType: automatic, ${schedule} }) { ... on PostActionSuccess { post { id text dueAt status channelId } } ... on MutationError { message } } }`;
+    const data = await bufferGraphQL(query);
+    const post = data.createPost?.post;
+    if (!post?.id) throw new Error(data.createPost?.message || "Buffer did not confirm post creation.");
+    posts.push(post);
   }
-
-  if (!Array.isArray(profileIds) || profileIds.length === 0) {
-    throw new Error("At least one Buffer profile ID must be specified.");
-  }
-  if (!text || !text.trim()) {
-    throw new Error("Post text cannot be empty.");
-  }
-
-  const endpoint = "https://api.bufferapp.com/1/updates/create.json";
-
-  const params = new URLSearchParams();
-  profileIds.forEach((pid) => params.append("profile_ids[]", pid));
-  params.append("text", text.trim());
-
-  if (scheduledAt) {
-    params.append("scheduled_at", Math.floor(new Date(scheduledAt).getTime() / 1000).toString());
-  } else {
-    params.append("now", "false"); // Schedule into queue
-  }
-
-  if (mediaUrls && mediaUrls.length > 0) {
-    params.append("media[photo]", mediaUrls[0]);
-  }
-
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: params.toString()
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Buffer scheduling failed (${res.status}): ${errorText}`);
-  }
-
-  const result = await res.json();
-  await logActivity("buffer_post_scheduled", `Scheduled post across ${profileIds.length} Buffer profiles`, {
-    metadata: { profileIds, bufferUpdateId: result.updates?.[0]?.id || result.id }
-  });
-
-  return result;
+  await logActivity("buffer_post_scheduled", `Scheduled post to ${posts.length} Buffer channel(s)`, { metadata: { channelIds: profileIds, bufferPostIds: posts.map(p => p.id) } });
+  return { posts, updates: posts.map(post => ({ id: post.id, ...post })) };
 }
-
 async function testBufferConnection() {
   const { isConfigured, accessToken } = getBufferConfig();
-  if (!isConfigured) {
-    return {
-      connected: false,
-      message: "BUFFER_ACCESS_TOKEN is not configured."
-    };
-  }
-
+  if (!isConfigured) return { connected: false, message: "BUFFER_ACCESS_TOKEN is not configured." };
   try {
     const profiles = await getBufferProfiles(accessToken);
-    return {
-      connected: true,
-      message: `Connected successfully to Buffer. Found ${profiles.length} connected channel(s).`,
-      profiles: profiles.map((p) => ({
-        id: p.id,
-        service: p.service,
-        service_username: p.service_username
-      }))
-    };
-  } catch (err) {
-    return {
-      connected: false,
-      message: `Buffer verification failed: ${err.message}`
-    };
-  }
+    return { connected: true, message: `Connected successfully to Buffer. Found ${profiles.length} connected channel(s).`, profiles: profiles.map(p => ({ id: p.id, service: p.service, service_username: p.service_username, name: p.name })) };
+  } catch (err) { return { connected: false, message: `Buffer verification failed: ${err.message}` }; }
 }
-
-module.exports = {
-  getBufferConfig,
-  getBufferProfiles,
-  scheduleBufferPost,
-  testBufferConnection
-};
+module.exports = { getBufferConfig, getBufferProfiles, scheduleBufferPost, testBufferConnection, bufferGraphQL };
