@@ -63,10 +63,10 @@ async function markApprovalExecuted(id, executionResult = {}) {
 }
 async function verifyApprovalGranted(entityType, entityId, actionType) {
   if (!isSupabaseConfigured()) return false;
-  const { data, error } = await getSupabaseClient().from("approvals").select("id")
+  const { data, error } = await getSupabaseClient().from("approvals").select("id,status")
     .eq("entity_type", entityType).eq("entity_id", entityId).eq("action_type", actionType)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw error;
-  return Boolean(data);
+  return data?.status === "approved";
 }
 module.exports = { createApprovalRequest, listApprovals, getApprovalById, updateApprovalDecision, claimApprovalForExecution, markApprovalExecuted, verifyApprovalGranted };
