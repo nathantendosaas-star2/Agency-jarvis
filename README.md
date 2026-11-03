@@ -1,61 +1,61 @@
 # Agency Jarvis
 
-Agency Jarvis is a new MVP codebase for an SMMA operating workspace.
+Agency Jarvis is an SMMA operating workspace MVP.
 
 ## Approved stack
 
 - Frontend: plain HTML5, CSS3 and vanilla browser JavaScript
-- Backend: Node.js 20+ and Express
-- Database: Supabase PostgreSQL (Step 3)
+- Backend: Node.js 22+ and Express
+- Database: Supabase PostgreSQL
+- Integrations: Google Sheets (via Google Apps Script Web App), OpenRouter, Tavily
 - Authentication: one administrator password with a bcrypt hash and signed HTTP-only session cookie
 - Hosting: Render
 - Version control: GitHub
 
 ## Local setup
 
-1. Install Node.js 20 or newer.
+1. Install Node.js 22 or newer (the current Supabase JS client requires Node.js 22+).
 2. Run `npm install`.
 3. Copy `.env.example` to `.env`.
 4. Generate a password hash using `npm run hash-password` in a terminal.
 5. Put the generated hash in `ADMIN_PASSWORD_HASH` in `.env`.
 6. Generate a session secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` and put it in `SESSION_SECRET`.
-7. Run `npm run dev`.
-8. Visit http://localhost:10000. The application should redirect to the login page.
-9. Check http://localhost:10000/health for the server health response.
+7. Configure Supabase, Google Sheets, Tavily, and OpenRouter as detailed below.
+8. Run `npm run dev`.
+9. Visit http://localhost:10000. The application should redirect to the login page.
+10. Check http://localhost:10000/health for the server health response.
 
-## Step 2 authentication
+## Supabase PostgreSQL Setup
 
-- Administrator password is verified on the server using bcrypt.
-- Passwords are never stored as plaintext.
-- Session is stored in a signed, HTTP-only, SameSite=Strict cookie with an eight-hour lifetime.
-- The cookie is marked Secure in production (HTTPS).
-- Login is limited to five attempts per IP in a rolling 15-minute window.
-- Login and logout POST requests require a matching same-origin header.
-- All application pages and future API routes are protected; `/login`, its required static assets, `/api/auth/login`, `/api/auth/logout`, and `/health` remain public.
-- Logout clears the session cookie.
+Run migrations in numeric order from the Supabase SQL Editor:
+1. `database/migrations/001_initial_schema.sql` — creates the base application tables and backend-only RLS configuration.
+2. `database/migrations/002_lead_reviewer_compatibility.sql` — adds and backfills the lead/research fields consumed by the current API. This migration is additive and preserves existing records.
 
-## Render deployment
+Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`. The service-role secret must remain server-side and must never be exposed to browser JavaScript.
 
-Connect the repository to Render using `render.yaml`. Add these environment variables in the Render service dashboard:
+## Google Sheets Lead Ingestion
 
-- `NODE_ENV=production`
-- `ADMIN_PASSWORD_HASH`: generated locally with `npm run hash-password`
-- `SESSION_SECRET`: a fresh random value of at least 32 characters
+1. Create a Google Sheet with headers: `Business Name` (required), `Website`, `Contact Name`, `Email`, `Phone`, `Business Category`, `Location`, and `Notes`.
+2. Follow `docs/google-sheets.md` to deploy the Google Apps Script Web App.
+3. Set `GOOGLE_SHEETS_SCRIPT_URL` and `GOOGLE_SHEETS_API_SECRET` in `.env`.
+4. On `/leads.html`, use **Import from Google Sheets**. The backend reads the configured URL and secret, validates rows, skips duplicates, and reports import results.
 
-Do not add your actual password, password hash, session secret, or `.env` file to GitHub. Use Render's environment settings. Render must serve the app over HTTPS for the Secure cookie to work.
+## AI Lead Reviewer
+
+Set `TAVILY_API_KEY`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL` in `.env`. On the Leads page, use **AI Review** to gather web evidence through Tavily and generate a structured SMMA qualification assessment through OpenRouter. Verify evidence before acting on a recommendation; AI scores are decision support, not proof.
+
+## Automated Testing
+
+Run `npm test`. The suite uses Node's built-in test runner and mocks external services.
 
 ## Current implementation status
 
-- **Step 1 — Project foundation:** Express server, static frontend shell, Render configuration and health endpoint.
-- **Step 2 — Administrator authentication:** implemented in the codebase; perform the local verification checklist before deployment.
-- **Step 3 — Supabase schema and connection:** next.
+- Step 1 — Project foundation and Render health endpoint.
+- Step 2 — Administrator password authentication and protected pages.
+- Step 3 — Supabase schema and server-side client.
 - Step 4 — Google Sheets lead ingestion.
-- Step 5 — OpenRouter + Tavily lead review.
-- Step 6 — SMTP outreach with explicit approvals.
-- Step 7 — Buffer social content and scheduling with approval.
-- Step 8 — Workbench and design brief workflow.
-- Step 9 — Render production deployment and testing.
-
-## Security note
-
-The login limiter currently uses an in-memory store, appropriate for this single-instance MVP. If multiple instances are introduced, move rate-limit state to a shared store. Rotating `SESSION_SECRET` invalidates existing sessions.
+- Step 5 — Tavily research and OpenRouter lead qualification.
+- Step 6 — SMTP outreach with explicit approval (planned).
+- Step 7 — Buffer social scheduling with approval (planned).
+- Step 8 — Workbench and design brief workflow (planned).
+- Step 9 — Render production deployment and verification.

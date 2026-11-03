@@ -1,106 +1,126 @@
--- Agency Jarvis MVP initial schema. Backend-only access via service_role.
-create extension if not exists pgcrypto;
+-- Supabase PostgreSQL Initial Schema for Agency Jarvis MVP
+-- Run this migration in the Supabase SQL Editor.
 
-create table public.leads (
- id uuid primary key default gen_random_uuid(),
- source text not null default 'google_sheets',
- source_record_id text,
- company_name text not null,
- contact_name text,
- email text,
- phone text,
- website text,
- location text,
- industry text,
- service_interest text,
- message text,
- status text not null default 'pending_review',
- raw_submission jsonb not null default '{}'::jsonb,
- created_at timestamptz not null default now(),
- updated_at timestamptz not null default now(),
- unique (source, source_record_id)
-);
-create index leads_status_idx on public.leads(status);
-create index leads_created_at_idx on public.leads(created_at desc);
-create index leads_company_name_idx on public.leads(company_name);
-create index leads_email_idx on public.leads(email);
+-- Enable pgcrypto or uuid-ossp for UUID generation
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-create table public.lead_research (
- id uuid primary key default gen_random_uuid(),
- lead_id uuid not null references public.leads(id) on delete cascade,
- research_type text not null default 'qualification',
- summary text,
- findings jsonb not null default '{}'::jsonb,
- evidence jsonb not null default '[]'::jsonb,
- sources jsonb not null default '[]'::jsonb,
- confidence numeric(4,3) check (confidence is null or confidence between 0 and 1),
- qualification_decision text,
- model text,
- researched_at timestamptz not null default now(),
- created_at timestamptz not null default now()
-);
-create index lead_research_lead_id_idx on public.lead_research(lead_id);
-create index lead_research_researched_at_idx on public.lead_research(researched_at desc);
-
-create table public.outreach_records (
- id uuid primary key default gen_random_uuid(),
- lead_id uuid references public.leads(id) on delete set null,
- channel text not null default 'email',
- direction text not null default 'outbound',
- recipient text,
- subject text,
- body text not null,
- status text not null default 'draft',
- approval_status text not null default 'pending',
- approved_at timestamptz,
- sent_at timestamptz,
- provider_message_id text,
- idempotency_key text unique,
- response_text text,
- metadata jsonb not null default '{}'::jsonb,
- created_at timestamptz not null default now(),
- updated_at timestamptz not null default now()
-);
-create index outreach_records_lead_id_idx on public.outreach_records(lead_id);
-create index outreach_records_status_idx on public.outreach_records(status);
-create index outreach_records_created_at_idx on public.outreach_records(created_at desc);
-
-create table public.social_content (
- id uuid primary key default gen_random_uuid(),
- client_name text,
- platform text not null,
- channel_id text,
- title text,
- caption text not null,
- media_urls text[] not null default '{}'::text[],
- scheduled_for timestamptz,
- buffer_update_id text,
- status text not null default 'draft',
- approval_status text not null default 'pending',
- approved_at timestamptz,
- published_at timestamptz,
- idempotency_key text unique,
- last_error text,
- metadata jsonb not null default '{}'::jsonb,
- created_at timestamptz not null default now(),
- updated_at timestamptz not null default now()
-);
-create index social_content_status_idx on public.social_content(status);
-create index social_content_scheduled_for_idx on public.social_content(scheduled_for);
-create index social_content_platform_idx on public.social_content(platform);
-create index social_content_created_at_idx on public.social_content(created_at desc);
-
-create table public.app_settings (
- key text primary key,
- value jsonb not null default '{}'::jsonb,
- description text,
- updated_at timestamptz not null default now()
+-- 1. Leads Table
+CREATE TABLE IF NOT EXISTS public.leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_name TEXT NOT NULL,
+  website TEXT,
+  normalized_website TEXT,
+  contact_name TEXT,
+  email TEXT,
+  phone TEXT,
+  business_category TEXT,
+  location TEXT,
+  source TEXT DEFAULT 'manual',
+  lead_status TEXT NOT NULL DEFAULT 'new' CHECK (lead_status IN ('new', 'researched', 'contacted', 'replied', 'disqualified', 'converted')),
+  research_status TEXT NOT NULL DEFAULT 'pending' CHECK (research_status IN ('pending', 'in_progress', 'completed', 'failed')),
+  qualification_score INTEGER CHECK (qualification_score >= 0 AND qualification_score <= 100),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
-alter table public.leads enable row level security;
-alter table public.lead_research enable row level security;
-alter table public.outreach_records enable row level security;
-alter table public.social_content enable row level security;
-alter table public.app_settings enable row level security;
+-- Unique constraint and indexes for Leads
+CREATE UNIQUE INDEX IF NOT EXISTS leads_normalized_website_idx ON public.leads (normalized_website) WHERE normalized_website IS NOT NULL AND normalized_website <> '';
+CREATE INDEX IF NOT EXISTS leads_email_idx ON public.leads (email) WHERE email IS NOT NULL AND email <> '';
+CREATE INDEX IF NOT EXISTS leads_created_at_idx ON public.leads (created_at DESC);
+CREATE INDEX IF NOT EXISTS leads_status_idx ON public.leads (lead_status);
+CREATE INDEX IF NOT EXISTS leads_research_status_idx ON public.leads (research_status);
 
-comment on table public.app_settings is 'Non-secret application settings only. Keep API credentials in server environment variables.';
+-- 2. Lead Research Table
+CREATE TABLE IF NOT EXISTS public.lead_research (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+  summary TEXT,
+  services_offered JSONB DEFAULT '[]'::jsonb,
+  target_market TEXT,
+  evidence_activity TEXT,
+  marketing_opportunities JSONB DEFAULT '[]'::jsonb,
+  potential_limitations JSONB DEFAULT '[]'::jsonb,
+  suggested_smma_services JSONB DEFAULT '[]'::jsonb,
+  qualification_score INTEGER CHECK (qualification_score >= 0 AND qualification_score <= 100),
+  qualification_reasoning TEXT,
+  research_sources JSONB DEFAULT '[]'::jsonb,
+  raw_research JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS lead_research_lead_id_idx ON public.lead_research (lead_id);
+
+-- 3. Outreach Records Table
+CREATE TABLE IF NOT EXISTS public.outreach_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+  channel TEXT NOT NULL DEFAULT 'email' CHECK (channel IN ('email', 'linkedin', 'phone', 'other')),
+  recipient TEXT NOT NULL,
+  subject TEXT,
+  message_body TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'approved', 'sent', 'failed', 'delivered', 'opened', 'replied')),
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS outreach_records_lead_id_idx ON public.outreach_records (lead_id);
+CREATE INDEX IF NOT EXISTS outreach_records_status_idx ON public.outreach_records (status);
+
+-- 4. Social Media Content Table
+CREATE TABLE IF NOT EXISTS public.social_content (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  platforms JSONB DEFAULT '["twitter"]'::jsonb,
+  media_urls JSONB DEFAULT '[]'::jsonb,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'published', 'failed')),
+  scheduled_at TIMESTAMPTZ,
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS social_content_status_idx ON public.social_content (status);
+
+-- 5. Application Settings Table
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- Trigger to auto-update updated_at timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_leads_updated_at ON public.leads;
+CREATE TRIGGER set_leads_updated_at
+  BEFORE UPDATE ON public.leads
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS set_lead_research_updated_at ON public.lead_research;
+CREATE TRIGGER set_lead_research_updated_at
+  BEFORE UPDATE ON public.lead_research
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS set_outreach_records_updated_at ON public.outreach_records;
+CREATE TRIGGER set_outreach_records_updated_at
+  BEFORE UPDATE ON public.outreach_records
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS set_social_content_updated_at ON public.social_content;
+CREATE TRIGGER set_social_content_updated_at
+  BEFORE UPDATE ON public.social_content
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();

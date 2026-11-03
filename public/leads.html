@@ -1,1 +1,163 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agency Jarvis | Leads</title><link rel="stylesheet" href="/css/style.css"><script src="/js/app.js" defer></script><script src="/js/leads.js" defer></script></head><body><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">J</span><span>AGENCY <strong>JARVIS</strong></span></a><p class="nav-label">WORKSPACE</p><nav class="nav"><a class="nav-link" href="/">Overview</a><a class="nav-link" href="/leads.html">Leads</a><a class="nav-link" href="/outreach.html">Outreach</a><a class="nav-link" href="/workbench.html">Workbench</a><a class="nav-link" href="/social.html">Social</a></nav><p class="nav-label">SYSTEM</p><nav class="nav"><a class="nav-link" href="/settings.html">Settings</a></nav><div class="sidebar-footer"><span class="status-dot"></span> Foundation build</div></aside><main class="main-content"><header class="topbar"><div><p class="eyebrow">LEAD PIPELINE</p><h1>Leads</h1></div><a class="text-link" href="/">← Dashboard</a></header><section class="welcome-panel compact"><div><p class="eyebrow">AGENCY JARVIS</p><h2>Capture, review and qualify prospects.</h2><p class="muted">The page structure is ready. Functionality will be added in its implementation step.</p></div><div class="welcome-orb" aria-hidden="true">J</div></section><section class="notice"><strong>Implementation status</strong><p>This module will connect to Supabase and the lead review workflow in later steps.</p></section><footer class="page-footer">AGENCY JARVIS <span>Built in tested increments.</span></footer></main></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Jarvis | Leads</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/app.js" defer></script>
+  <script src="/js/leads.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">J</span>
+        <span>AGENCY <strong>JARVIS</strong></span>
+      </a>
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="nav">
+        <a class="nav-link" href="/">Overview</a>
+        <a class="nav-link active" href="/leads.html">Leads</a>
+        <a class="nav-link" href="/outreach.html">Outreach</a>
+        <a class="nav-link" href="/workbench.html">Workbench</a>
+        <a class="nav-link" href="/social.html">Social</a>
+      </nav>
+      <p class="nav-label">SYSTEM</p>
+      <nav class="nav">
+        <a class="nav-link" href="/settings.html">Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="status-dot"></span> Foundation build
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">LEAD PIPELINE</p>
+          <h1>Leads</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="import-sheets-btn" class="action-button secondary-btn" type="button">
+            Import from Google Sheets
+          </button>
+          <a class="text-link" href="/">← Dashboard</a>
+        </div>
+      </header>
+
+      <section class="welcome-panel compact">
+        <div>
+          <p class="eyebrow">PIPELINE OPERATIONS</p>
+          <h2>Capture, research and qualify prospects.</h2>
+          <p class="muted">Automate prospect enrichment with Tavily web research and OpenRouter AI qualification.</p>
+        </div>
+        <div class="welcome-orb" aria-hidden="true">J</div>
+      </section>
+
+      <!-- Import Feedback Banner -->
+      <div id="import-banner" class="banner hidden"></div>
+
+      <!-- Filters & Actions Bar -->
+      <section class="controls-bar">
+        <div class="search-box">
+          <input type="text" id="lead-search" placeholder="Search by name, contact, email…" autocomplete="off">
+        </div>
+        <div class="filter-group">
+          <select id="status-filter">
+            <option value="">All Lead Statuses</option>
+            <option value="new">New</option>
+            <option value="researched">Researched</option>
+            <option value="contacted">Contacted</option>
+            <option value="replied">Replied</option>
+            <option value="disqualified">Disqualified</option>
+            <option value="converted">Converted</option>
+          </select>
+          <select id="research-filter">
+            <option value="">All Research Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+          </select>
+          <button id="refresh-btn" class="icon-btn" title="Refresh leads" type="button">↻</button>
+        </div>
+      </section>
+
+      <!-- Leads Table Container -->
+      <section class="table-container">
+        <div id="loading-state" class="state-message hidden">Loading leads…</div>
+        <div id="empty-state" class="state-message hidden">
+          <p>No prospects found in pipeline.</p>
+          <p class="muted">Click <strong>Import from Google Sheets</strong> above to ingest prospect rows.</p>
+        </div>
+        <div id="error-state" class="state-message error-message hidden"></div>
+
+        <table id="leads-table" class="data-table hidden">
+          <thead>
+            <tr>
+              <th>Business</th>
+              <th>Contact</th>
+              <th>Category</th>
+              <th>Score</th>
+              <th>Research</th>
+              <th>Status</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="leads-tbody"></tbody>
+        </table>
+      </section>
+
+      <!-- Research Details Modal / Drawer -->
+      <div id="research-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow" id="modal-eyebrow">AI RESEARCH & QUALIFICATION</p>
+              <h2 id="modal-title">Business Review</h2>
+            </div>
+            <button id="modal-close" class="close-button" type="button" aria-label="Close modal">&times;</button>
+          </div>
+          <div class="modal-body" id="modal-content">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Import Dialog Modal -->
+      <div id="import-modal" class="modal-backdrop hidden">
+        <div class="modal-card modal-card-sm">
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">GOOGLE SHEETS INGESTION</p>
+              <h2>Import Prospect Leads</h2>
+            </div>
+            <button id="import-modal-close" class="close-button" type="button" aria-label="Close modal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="import-form">
+              <p class="muted" style="margin-top:0;">Ingest rows from your configured Google Apps Script Web App.</p>
+              <div class="form-group">
+                <label for="import-script-url">Web App URL (Optional override)</label>
+                <input type="url" id="import-script-url" placeholder="Uses GOOGLE_SHEETS_SCRIPT_URL if blank">
+              </div>
+              <div class="form-group">
+                <label for="import-api-secret">API Secret (Optional override)</label>
+                <input type="password" id="import-api-secret" placeholder="Uses GOOGLE_SHEETS_API_SECRET if blank">
+              </div>
+              <div id="import-status-text" class="import-status-text hidden"></div>
+              <div class="modal-actions">
+                <button type="button" id="import-cancel-btn" class="action-button secondary-btn">Cancel</button>
+                <button type="submit" id="import-submit-btn" class="action-button primary-btn">Start Ingestion</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <footer class="page-footer">AGENCY JARVIS <span>Built in tested increments.</span></footer>
+    </main>
+  </div>
+</body>
+</html>
