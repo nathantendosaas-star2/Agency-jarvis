@@ -28,7 +28,7 @@
         <a class="nav-link" href="/settings.html">Settings</a>
       </nav>
       <div class="sidebar-footer">
-        <span class="status-dot"></span> Foundation build
+        <span class="status-dot"></span> System Live
       </div>
     </aside>
 
@@ -38,18 +38,19 @@
           <p class="eyebrow">AGENCY OPERATIONS</p>
           <h1>Dashboard</h1>
         </div>
-        <span class="status-pill">MVP · Active</span>
+        <span class="status-pill">MVP · Operational</span>
       </header>
 
       <section class="welcome-panel">
         <div>
           <p class="eyebrow">COMMAND OVERVIEW</p>
-          <h2>Your agency, in one place.</h2>
-          <p class="muted">Prospect acquisition and research active: Supabase storage, Google Sheets ingestion, and OpenRouter + Tavily AI qualification.</p>
+          <h2>Agency Operating System</h2>
+          <p class="muted">Live operational control for leads, AI qualification, prospect outreach, content scheduling, and client deliverables.</p>
         </div>
         <div class="welcome-orb">J</div>
       </section>
 
+      <!-- Key Operational Metrics Grid -->
       <section class="dashboard-stats-grid">
         <div class="stat-card">
           <p class="eyebrow">PIPELINE PROSPECTS</p>
@@ -57,12 +58,45 @@
           <p class="stat-note">Total prospects in database</p>
         </div>
         <div class="stat-card">
-          <p class="eyebrow">AI RESEARCHED</p>
-          <div class="stat-value" id="stat-researched-count">—</div>
-          <p class="stat-note">Evaluated with Tavily & OpenRouter</p>
+          <p class="eyebrow">QUALIFIED LEADS</p>
+          <div class="stat-value" id="stat-qualified-count">—</div>
+          <p class="stat-note">Score ≥ 60 or approved</p>
+        </div>
+        <div class="stat-card">
+          <p class="eyebrow">ACTIVE CLIENTS</p>
+          <div class="stat-value" id="stat-clients-count">—</div>
+          <p class="stat-note">Retained SMMA accounts</p>
+        </div>
+        <div class="stat-card">
+          <p class="eyebrow">PENDING APPROVALS</p>
+          <div class="stat-value" id="stat-approvals-count" style="color:#fde047">—</div>
+          <p class="stat-note">Emails & posts awaiting review</p>
         </div>
       </section>
 
+      <!-- Pending Approvals Widget -->
+      <section class="section-heading" id="approvals-heading-section">
+        <div>
+          <p class="eyebrow">ADMINISTRATOR DECISIONS</p>
+          <h2>Pending Approvals</h2>
+        </div>
+      </section>
+      <div id="approvals-container" class="table-container">
+        <p class="state-message">Loading pending approvals…</p>
+      </div>
+
+      <!-- Recent Agency Activity Feed -->
+      <section class="section-heading">
+        <div>
+          <p class="eyebrow">AUDIT TRAIL</p>
+          <h2>Recent Activity</h2>
+        </div>
+      </section>
+      <div id="activity-container" class="activity-feed-container">
+        <p class="state-message">Loading activity logs…</p>
+      </div>
+
+      <!-- Quick Modules Access -->
       <section class="section-heading">
         <div>
           <p class="eyebrow">WORKSPACE</p>
@@ -74,25 +108,25 @@
         <a class="module-card" href="/leads.html">
           <span class="module-number">01</span>
           <h3>Lead pipeline</h3>
-          <p>Capture, review and qualify prospects.</p>
+          <p>Capture, review and qualify prospects with Tavily and OpenRouter.</p>
           <span class="module-link">Open leads →</span>
         </a>
         <a class="module-card" href="/outreach.html">
           <span class="module-number">02</span>
           <h3>Outreach</h3>
-          <p>Prepare prospect communication.</p>
+          <p>Generate personalized emails, approve sends, and handle replies.</p>
           <span class="module-link">Open outreach →</span>
         </a>
         <a class="module-card" href="/workbench.html">
           <span class="module-number">03</span>
           <h3>Workbench</h3>
-          <p>Submit tasks to Jarvis.</p>
+          <p>Submit natural-language requests for briefs, proposals, and strategies.</p>
           <span class="module-link">Open workbench →</span>
         </a>
         <a class="module-card" href="/social.html">
           <span class="module-number">04</span>
           <h3>Social studio</h3>
-          <p>Prepare and manage social content.</p>
+          <p>Generate social posts, approve calendars, and schedule via Buffer.</p>
           <span class="module-link">Open social →</span>
         </a>
       </section>

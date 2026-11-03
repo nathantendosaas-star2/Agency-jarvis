@@ -25,7 +25,7 @@ function getSupabaseClient() {
 }
 
 function isSupabaseConfigured() {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(supabaseInstance || (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY));
 }
 
 // Helper to set client for unit testing/mocking

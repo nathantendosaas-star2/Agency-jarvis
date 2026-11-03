@@ -4,6 +4,7 @@ const { ingestFromGoogleSheets } = require("../services/sheetsService");
 const { reviewAndQualifyLead } = require("../services/leadReviewService");
 const { getResearchByLeadId } = require("../services/researchService");
 const { isSupabaseConfigured } = require("../config/supabase");
+const { logActivity } = require("../services/activityService");
 
 function createLeadsRouter() {
   const router = express.Router();
@@ -58,6 +59,7 @@ function createLeadsRouter() {
         notes,
         source: "manual"
       });
+      await logActivity("lead_created", `Created lead: ${business_name}`, { entityType: "leads", entityId: lead.id });
       return res.status(201).json(lead);
     } catch (err) {
       console.error("Failed to create lead:", err.message);
@@ -72,6 +74,9 @@ function createLeadsRouter() {
 
     try {
       const stats = await ingestFromGoogleSheets({ scriptUrl, apiSecret });
+      await logActivity("leads_imported", `Google Sheets import: ${stats.leadsImported} added, ${stats.duplicatesSkipped} duplicates`, {
+        metadata: stats
+      });
       return res.status(200).json({
         success: true,
         stats
@@ -97,6 +102,23 @@ function createLeadsRouter() {
     }
   });
 
+  // PATCH /api/leads/:id - Update lead details / status / decision
+  router.patch("/:id", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    try {
+      const updated = await updateLead(req.params.id, req.body || {});
+      await logActivity("lead_updated", `Updated lead ${updated.business_name}: status ${updated.lead_status}`, {
+        entityType: "leads",
+        entityId: req.params.id,
+        metadata: { lead_status: updated.lead_status }
+      });
+      return res.status(200).json(updated);
+    } catch (err) {
+      console.error("Failed to update lead:", err.message);
+      return res.status(400).json({ error: err.message });
+    }
+  });
+
   // GET /api/leads/:id/research - Get research result for a lead
   router.get("/:id/research", async (req, res) => {
     res.set("Cache-Control", "no-store");
@@ -117,6 +139,11 @@ function createLeadsRouter() {
     res.set("Cache-Control", "no-store");
     try {
       const result = await reviewAndQualifyLead(req.params.id);
+      await logActivity("lead_reviewed", `AI Lead Review completed for ${result.lead.business_name} (Score: ${result.lead.qualification_score}/100)`, {
+        entityType: "leads",
+        entityId: req.params.id,
+        metadata: { score: result.lead.qualification_score }
+      });
       return res.status(200).json(result);
     } catch (err) {
       console.error("Lead review failed:", err.message);

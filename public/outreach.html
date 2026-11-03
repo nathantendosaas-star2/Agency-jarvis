@@ -1,1 +1,141 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agency Jarvis | Outreach</title><link rel="stylesheet" href="/css/style.css"><script src="/js/app.js" defer></script><script src="/js/outreach.js" defer></script></head><body><div class="app-shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">J</span><span>AGENCY <strong>JARVIS</strong></span></a><p class="nav-label">WORKSPACE</p><nav class="nav"><a class="nav-link" href="/">Overview</a><a class="nav-link" href="/leads.html">Leads</a><a class="nav-link" href="/outreach.html">Outreach</a><a class="nav-link" href="/workbench.html">Workbench</a><a class="nav-link" href="/social.html">Social</a></nav><p class="nav-label">SYSTEM</p><nav class="nav"><a class="nav-link" href="/settings.html">Settings</a></nav><div class="sidebar-footer"><span class="status-dot"></span> Foundation build</div></aside><main class="main-content"><header class="topbar"><div><p class="eyebrow">PROSPECT COMMUNICATION</p><h1>Outreach</h1></div><a class="text-link" href="/">← Dashboard</a></header><section class="welcome-panel compact"><div><p class="eyebrow">AGENCY JARVIS</p><h2>Prepare and manage prospect outreach.</h2><p class="muted">The page structure is ready. Functionality will be added in its implementation step.</p></div><div class="welcome-orb" aria-hidden="true">J</div></section><section class="notice"><strong>Implementation status</strong><p>Email drafting, approval and SMTP sending will be implemented in Step 6.</p></section><footer class="page-footer">AGENCY JARVIS <span>Built in tested increments.</span></footer></main></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Jarvis | Outreach</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/app.js" defer></script>
+  <script src="/js/outreach.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">J</span>
+        <span>AGENCY <strong>JARVIS</strong></span>
+      </a>
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="nav">
+        <a class="nav-link" href="/">Overview</a>
+        <a class="nav-link" href="/leads.html">Leads</a>
+        <a class="nav-link active" href="/outreach.html">Outreach</a>
+        <a class="nav-link" href="/workbench.html">Workbench</a>
+        <a class="nav-link" href="/social.html">Social</a>
+      </nav>
+      <p class="nav-label">SYSTEM</p>
+      <nav class="nav">
+        <a class="nav-link" href="/settings.html">Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="status-dot"></span> System Live
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PROSPECT COMMUNICATION</p>
+          <h1>Outreach Workspace</h1>
+        </div>
+        <a class="text-link" href="/">← Dashboard</a>
+      </header>
+
+      <section class="welcome-panel compact">
+        <div>
+          <p class="eyebrow">COLD EMAIL STUDIO</p>
+          <h2>Personalized AI Outreach & Conversation Tracking</h2>
+          <p class="muted">Generate high-converting, research-backed cold emails. Administrator-enforced approval ensures no email sends without consent.</p>
+        </div>
+        <div class="welcome-orb" aria-hidden="true">J</div>
+      </section>
+
+      <!-- Outreach Generator Card -->
+      <div class="workspace-card" style="margin-top:24px">
+        <div class="card-header">
+          <h3>1. Generate Prospect Outreach</h3>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Select Qualified Lead</label>
+            <select id="lead-select">
+              <option value="">Loading qualified leads…</option>
+            </select>
+          </div>
+          <div class="form-group" style="align-self:end">
+            <button id="generate-draft-btn" class="action-button primary-btn" type="button" disabled>
+              Generate AI Email Draft
+            </button>
+          </div>
+        </div>
+
+        <div id="draft-workspace" class="hidden" style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px">
+          <div class="form-group">
+            <label>Subject Line Options</label>
+            <div id="subject-options-container" class="subject-chips"></div>
+            <input type="text" id="draft-subject" style="margin-top:8px" placeholder="Email subject">
+          </div>
+          <div class="form-group">
+            <label>Email Body (Editable)</label>
+            <textarea id="draft-body" rows="6" placeholder="Email content..."></textarea>
+          </div>
+          <div class="row-actions" style="justify-content:flex-start;gap:12px">
+            <button id="request-approval-btn" class="action-button primary-btn" type="button">
+              Submit for Approval
+            </button>
+            <span id="approval-status-badge" class="status-badge status-new">Status: Draft</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Outreach History & Active Conversations -->
+      <section class="section-heading">
+        <div>
+          <p class="eyebrow">COMMUNICATION PIPELINE</p>
+          <h2>Outreach Records & Conversations</h2>
+        </div>
+      </section>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Lead / Recipient</th>
+              <th>Subject</th>
+              <th>Status</th>
+              <th>Follow-up / Reply</th>
+              <th style="text-align:right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="outreach-tbody">
+            <tr><td colspan="5" class="state-message">Loading outreach history…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="page-footer">AGENCY JARVIS <span>One command centre. Human-controlled execution.</span></footer>
+    </main>
+  </div>
+
+  <!-- Record Prospect Reply Modal -->
+  <div id="reply-modal" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h2>Record Prospect Reply</h2>
+        <button id="reply-close-btn" class="close-button">&times;</button>
+      </div>
+      <form id="reply-form">
+        <input type="hidden" id="reply-outreach-id">
+        <div class="form-group">
+          <label>Prospect Reply Content *</label>
+          <textarea id="reply-text" rows="5" required placeholder="Paste the prospect's email response here..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="reply-cancel-btn" class="table-btn secondary">Cancel</button>
+          <button type="submit" id="reply-submit-btn" class="action-button primary-btn">Classify Reply & Recommend Action</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

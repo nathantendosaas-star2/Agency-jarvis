@@ -2,122 +2,98 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   const leadsTbody = document.getElementById("leads-tbody");
-  const leadsTable = document.getElementById("leads-table");
-  const loadingState = document.getElementById("loading-state");
-  const emptyState = document.getElementById("empty-state");
-  const errorState = document.getElementById("error-state");
-  const importBanner = document.getElementById("import-banner");
-
   const searchInput = document.getElementById("lead-search");
-  const statusFilter = document.getElementById("status-filter");
-  const researchFilter = document.getElementById("research-filter");
+  const statusFilter = document.getElementById("filter-status");
+  const researchFilter = document.getElementById("filter-research");
   const refreshBtn = document.getElementById("refresh-btn");
+
+  const addLeadBtn = document.getElementById("add-lead-btn");
+  const addLeadModal = document.getElementById("add-lead-modal");
+  const addLeadClose = document.getElementById("add-lead-close");
+  const addLeadCancel = document.getElementById("add-lead-cancel");
+  const addLeadForm = document.getElementById("add-lead-form");
 
   const importBtn = document.getElementById("import-sheets-btn");
   const importModal = document.getElementById("import-modal");
   const importModalClose = document.getElementById("import-modal-close");
   const importCancelBtn = document.getElementById("import-cancel-btn");
   const importForm = document.getElementById("import-form");
-  const importStatusText = document.getElementById("import-status-text");
   const importSubmitBtn = document.getElementById("import-submit-btn");
+  const importStatusText = document.getElementById("import-status-text");
+  const importBanner = document.getElementById("import-banner");
 
   const researchModal = document.getElementById("research-modal");
-  const researchModalClose = document.getElementById("modal-close");
+  const researchModalClose = document.getElementById("modal-close-btn");
   const modalTitle = document.getElementById("modal-title");
   const modalContent = document.getElementById("modal-content");
 
   let debounceTimer = null;
 
   async function loadLeads() {
-    leadsTable.classList.add("hidden");
-    emptyState.classList.add("hidden");
-    errorState.classList.add("hidden");
-    loadingState.classList.remove("hidden");
+    leadsTbody.innerHTML = `<tr><td colspan="6" class="state-message">Loading leads…</td></tr>`;
 
     const params = new URLSearchParams();
-    if (searchInput && searchInput.value.trim()) params.set("search", searchInput.value.trim());
-    if (statusFilter && statusFilter.value) params.set("status", statusFilter.value);
-    if (researchFilter && researchFilter.value) params.set("research_status", researchFilter.value);
+    if (searchInput && searchInput.value.trim()) params.append("search", searchInput.value.trim());
+    if (statusFilter && statusFilter.value) params.append("status", statusFilter.value);
+    if (researchFilter && researchFilter.value) params.append("research_status", researchFilter.value);
 
     try {
       const res = await fetch(`/api/leads?${params.toString()}`);
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Failed to fetch leads (${res.status})`);
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to load leads from database.");
       }
-
       const data = await res.json();
       renderLeads(data.leads || []);
     } catch (err) {
-      loadingState.classList.add("hidden");
-      errorState.textContent = err.message;
-      errorState.classList.remove("hidden");
+      leadsTbody.innerHTML = `<tr><td colspan="6" class="state-message error-message">${escapeHtml(err.message)}</td></tr>`;
     }
   }
 
   function renderLeads(leads) {
-    loadingState.classList.add("hidden");
-    leadsTbody.innerHTML = "";
-
-    if (!leads || leads.length === 0) {
-      emptyState.classList.remove("hidden");
-      leadsTable.classList.add("hidden");
+    if (leads.length === 0) {
+      leadsTbody.innerHTML = `<tr><td colspan="6" class="state-message">No leads found matching criteria.</td></tr>`;
       return;
     }
 
-    leadsTable.classList.remove("hidden");
+    leadsTbody.innerHTML = "";
     leads.forEach((lead) => {
       const tr = document.createElement("tr");
 
-      // Business
-      const tdBusiness = document.createElement("td");
-      const busName = document.createElement("div");
-      busName.className = "lead-name";
-      busName.textContent = lead.business_name;
-      tdBusiness.appendChild(busName);
+      // Business Info
+      const tdBiz = document.createElement("td");
+      const nameEl = document.createElement("div");
+      nameEl.className = "lead-name";
+      nameEl.textContent = lead.business_name || lead.company_name || "Unnamed Business";
+
+      const catEl = document.createElement("div");
+      catEl.className = "lead-meta";
+      catEl.textContent = [lead.business_category || lead.industry, lead.location].filter(Boolean).join(" • ") || "General";
+
+      tdBiz.appendChild(nameEl);
+      tdBiz.appendChild(catEl);
 
       if (lead.website) {
         const webLink = document.createElement("a");
+        webLink.className = "lead-meta-link";
         webLink.href = lead.website.startsWith("http") ? lead.website : `https://${lead.website}`;
         webLink.target = "_blank";
         webLink.rel = "noopener noreferrer";
-        webLink.className = "lead-meta-link";
         webLink.textContent = lead.website.replace(/^https?:\/\//, "");
-        tdBusiness.appendChild(webLink);
+        tdBiz.appendChild(webLink);
       }
-      tr.appendChild(tdBusiness);
+      tr.appendChild(tdBiz);
 
-      // Contact
+      // Contact Details
       const tdContact = document.createElement("td");
-      const contactText = document.createElement("div");
-      contactText.textContent = lead.contact_name || "—";
-      tdContact.appendChild(contactText);
-      if (lead.email) {
-        const emailDiv = document.createElement("div");
-        emailDiv.className = "lead-meta";
-        emailDiv.textContent = lead.email;
-        tdContact.appendChild(emailDiv);
-      }
+      tdContact.innerHTML = `<div>${escapeHtml(lead.contact_name || "—")}</div><div class="lead-meta">${escapeHtml(lead.email || "")}</div><div class="lead-meta">${escapeHtml(lead.phone || "")}</div>`;
       tr.appendChild(tdContact);
-
-      // Category / Location
-      const tdCategory = document.createElement("td");
-      const catText = document.createElement("div");
-      catText.textContent = lead.business_category || "General";
-      tdCategory.appendChild(catText);
-      if (lead.location) {
-        const locDiv = document.createElement("div");
-        locDiv.className = "lead-meta";
-        locDiv.textContent = lead.location;
-        tdCategory.appendChild(locDiv);
-      }
-      tr.appendChild(tdCategory);
 
       // Score
       const tdScore = document.createElement("td");
-      if (typeof lead.qualification_score === "number") {
+      const score = lead.qualification_score;
+      if (typeof score === "number" && score !== null) {
         const scoreBadge = document.createElement("span");
-        const score = lead.qualification_score;
         let scoreClass = "score-low";
         if (score >= 75) scoreClass = "score-high";
         else if (score >= 45) scoreClass = "score-mid";
@@ -137,12 +113,31 @@ document.addEventListener("DOMContentLoaded", () => {
       tdResearch.appendChild(researchBadge);
       tr.appendChild(tdResearch);
 
-      // Status
+      // Status dropdown for administrator changes
       const tdStatus = document.createElement("td");
-      const statusBadge = document.createElement("span");
-      statusBadge.className = `status-badge status-${lead.lead_status || "new"}`;
-      statusBadge.textContent = lead.lead_status || "new";
-      tdStatus.appendChild(statusBadge);
+      const statusSelect = document.createElement("select");
+      statusSelect.className = `table-select status-${lead.lead_status || "new"}`;
+      const statuses = ["new", "qualified", "needs_review", "contacted", "replied", "converted", "disqualified"];
+      statuses.forEach((st) => {
+        const opt = document.createElement("option");
+        opt.value = st;
+        opt.textContent = st.replace("_", " ").toUpperCase();
+        if ((lead.lead_status || "new") === st) opt.selected = true;
+        statusSelect.appendChild(opt);
+      });
+      statusSelect.addEventListener("change", async () => {
+        try {
+          await fetch(`/api/leads/${lead.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lead_status: statusSelect.value })
+          });
+          loadLeads();
+        } catch (err) {
+          alert(`Failed to update status: ${err.message}`);
+        }
+      });
+      tdStatus.appendChild(statusSelect);
       tr.appendChild(tdStatus);
 
       // Actions
@@ -208,13 +203,13 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error(err.error || "Could not load research details.");
       }
       const data = await res.json();
-      renderResearchContent(data);
+      renderResearchContent(leadId, data);
     } catch (err) {
-      modalContent.innerHTML = `<div class='notice error'><p>${err.message}</p></div>`;
+      modalContent.innerHTML = `<div class='notice error'><p>${escapeHtml(err.message)}</p></div>`;
     }
   }
 
-  function renderResearchContent(research) {
+  function renderResearchContent(leadId, research) {
     let scoreClass = "score-low";
     if (research.qualification_score >= 75) scoreClass = "score-high";
     else if (research.qualification_score >= 45) scoreClass = "score-mid";
@@ -234,6 +229,15 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>SMMA Qualification Score</h4>
           <p>${escapeHtml(research.qualification_reasoning || "No reasoning recorded.")}</p>
         </div>
+      </div>
+
+      <!-- Administrator Review Decision Buttons -->
+      <div class="review-decision-bar">
+        <span>Admin Decision:</span>
+        <button class="table-btn primary" id="decide-qualify-btn">Qualify Lead</button>
+        <button class="table-btn secondary" id="decide-review-btn">Flag for Review</button>
+        <button class="table-btn secondary" style="color:#f87171" id="decide-disqualify-btn">Disqualify</button>
+        <a href="/outreach.html" class="button-link" style="margin:0 0 0 auto;padding:6px 12px;font-size:11px">Prepare Outreach →</a>
       </div>
 
       <div class="review-section">
@@ -278,6 +282,24 @@ document.addEventListener("DOMContentLoaded", () => {
         <ul class="sources-list">${sourcesList || "<li class='muted'>No external sources linked</li>"}</ul>
       </div>
     `;
+
+    document.getElementById("decide-qualify-btn").addEventListener("click", () => updateLeadStatus(leadId, "qualified"));
+    document.getElementById("decide-review-btn").addEventListener("click", () => updateLeadStatus(leadId, "needs_review"));
+    document.getElementById("decide-disqualify-btn").addEventListener("click", () => updateLeadStatus(leadId, "disqualified"));
+  }
+
+  async function updateLeadStatus(leadId, status) {
+    try {
+      await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_status: status })
+      });
+      researchModal.classList.add("hidden");
+      loadLeads();
+    } catch (err) {
+      alert(`Status update error: ${err.message}`);
+    }
   }
 
   function escapeHtml(text) {
@@ -290,29 +312,53 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/'/g, "&#039;");
   }
 
-  // Event Listeners for Filters
+  // Filter Event Listeners
   if (searchInput) {
     searchInput.addEventListener("input", () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(loadLeads, 300);
     });
   }
-
   if (statusFilter) statusFilter.addEventListener("change", loadLeads);
   if (researchFilter) researchFilter.addEventListener("change", loadLeads);
   if (refreshBtn) refreshBtn.addEventListener("click", loadLeads);
 
-  // Modal Closures
-  if (researchModalClose) {
-    researchModalClose.addEventListener("click", () => researchModal.classList.add("hidden"));
-  }
-  if (researchModal) {
-    researchModal.addEventListener("click", (e) => {
-      if (e.target === researchModal) researchModal.classList.add("hidden");
+  // Add Lead Modal Listeners
+  if (addLeadBtn) addLeadBtn.addEventListener("click", () => addLeadModal.classList.remove("hidden"));
+  if (addLeadClose) addLeadClose.addEventListener("click", () => addLeadModal.classList.add("hidden"));
+  if (addLeadCancel) addLeadCancel.addEventListener("click", () => addLeadModal.classList.add("hidden"));
+  if (addLeadForm) {
+    addLeadForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        business_name: document.getElementById("new-lead-name").value,
+        website: document.getElementById("new-lead-website").value,
+        contact_name: document.getElementById("new-lead-contact").value,
+        email: document.getElementById("new-lead-email").value,
+        business_category: document.getElementById("new-lead-category").value,
+        location: document.getElementById("new-lead-location").value,
+        notes: document.getElementById("new-lead-notes").value
+      };
+      try {
+        const res = await fetch("/api/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to create lead");
+        }
+        addLeadModal.classList.add("hidden");
+        addLeadForm.reset();
+        loadLeads();
+      } catch (err) {
+        alert(err.message);
+      }
     });
   }
 
-  // Import Modal Handlers
+  // Google Sheets Import Listeners
   if (importBtn) {
     importBtn.addEventListener("click", () => {
       importStatusText.textContent = "";
@@ -320,25 +366,14 @@ document.addEventListener("DOMContentLoaded", () => {
       importModal.classList.remove("hidden");
     });
   }
-
-  if (importModalClose) {
-    importModalClose.addEventListener("click", () => importModal.classList.add("hidden"));
-  }
-  if (importCancelBtn) {
-    importCancelBtn.addEventListener("click", () => importModal.classList.add("hidden"));
-  }
-  if (importModal) {
-    importModal.addEventListener("click", (e) => {
-      if (e.target === importModal) importModal.classList.add("hidden");
-    });
-  }
-
+  if (importModalClose) importModalClose.addEventListener("click", () => importModal.classList.add("hidden"));
+  if (importCancelBtn) importCancelBtn.addEventListener("click", () => importModal.classList.add("hidden"));
   if (importForm) {
     importForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       importSubmitBtn.disabled = true;
       importSubmitBtn.textContent = "Importing…";
-      importStatusText.textContent = "Connecting to Google Sheets…";
+      importStatusText.textContent = "Connecting to Google Sheets Web App…";
       importStatusText.className = "import-status-text";
       importStatusText.classList.remove("hidden");
 
@@ -349,22 +384,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await fetch("/api/leads/import/sheets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scriptUrl: scriptUrl || undefined,
-            apiSecret: apiSecret || undefined
-          })
+          body: JSON.stringify({ scriptUrl: scriptUrl || undefined, apiSecret: apiSecret || undefined })
         });
-
         const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || "Import failed");
-        }
+        if (!res.ok) throw new Error(data.error || "Import failed");
 
         const stats = data.stats;
         importStatusText.textContent = `Success: Processed ${stats.rowsProcessed} rows, imported ${stats.leadsImported} new leads, skipped ${stats.duplicatesSkipped} duplicates.`;
         importStatusText.classList.add("status-success");
 
-        // Display banner on main page
         importBanner.className = "banner banner-success";
         importBanner.textContent = `Google Sheets Import complete: ${stats.leadsImported} imported, ${stats.duplicatesSkipped} duplicates skipped, ${stats.invalidRows} invalid.`;
         importBanner.classList.remove("hidden");
@@ -383,6 +411,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Initial load
+  if (researchModalClose) researchModalClose.addEventListener("click", () => researchModal.classList.add("hidden"));
+
   loadLeads();
 });

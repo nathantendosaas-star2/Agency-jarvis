@@ -1,61 +1,146 @@
-# Agency Jarvis
+# Agency Jarvis — SMMA Operating System (MVP)
 
-Agency Jarvis is an SMMA operating workspace MVP.
+Agency Jarvis is an AI-powered operating system for running a Social Media Marketing Agency (SMMA). It centralizes prospect intake, automated web intelligence, AI lead qualification, administrator-approved cold outreach, agency deliverable generation, and multi-platform social media publishing via Buffer.
 
-## Approved stack
+---
 
-- Frontend: plain HTML5, CSS3 and vanilla browser JavaScript
-- Backend: Node.js 22+ and Express
-- Database: Supabase PostgreSQL
-- Integrations: Google Sheets (via Google Apps Script Web App), OpenRouter, Tavily
-- Authentication: one administrator password with a bcrypt hash and signed HTTP-only session cookie
-- Hosting: Render
-- Version control: GitHub
+## 1. Architecture & Tech Stack
 
-## Local setup
+- **Backend**: Node.js 22+, Express.js.
+- **Frontend**: Plain HTML5, CSS3, and Vanilla JavaScript (No React, Vue, Tailwind, or build steps).
+- **Database**: Supabase PostgreSQL (`@supabase/supabase-js`).
+- **AI Gateway**: OpenRouter API (`google/gemma-4-26b-a4b-it:free` default).
+- **Web Intelligence**: Tavily API for evidence collection.
+- **Outbound Email**: SMTP (Nodemailer) with explicit administrator approval gating and safe dev sandbox.
+- **Social Scheduling**: Buffer API.
+- **Lead Ingestion**: Google Forms → Google Sheets → Google Apps Script Web App → Jarvis API.
+- **Security**: Single administrator bcrypt password, secure HTTP-only cookies, SameSite cookies, login rate limiting, helmet security headers.
 
-1. Install Node.js 22 or newer (the current Supabase JS client requires Node.js 22+).
-2. Run `npm install`.
-3. Copy `.env.example` to `.env`.
-4. Generate a password hash using `npm run hash-password` in a terminal.
-5. Put the generated hash in `ADMIN_PASSWORD_HASH` in `.env`.
-6. Generate a session secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` and put it in `SESSION_SECRET`.
-7. Configure Supabase, Google Sheets, Tavily, and OpenRouter as detailed below.
-8. Run `npm run dev`.
-9. Visit http://localhost:10000. The application should redirect to the login page.
-10. Check http://localhost:10000/health for the server health response.
+---
 
-## Supabase PostgreSQL Setup
+## 2. Local Installation & Development
 
-Run migrations in numeric order from the Supabase SQL Editor:
-1. `database/migrations/001_initial_schema.sql` — creates the base application tables and backend-only RLS configuration.
-2. `database/migrations/002_lead_reviewer_compatibility.sql` — adds and backfills the lead/research fields consumed by the current API. This migration is additive and preserves existing records.
+### Prerequisites
+- Node.js version 22 or later.
+- npm version 10 or later.
 
-Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`. The service-role secret must remain server-side and must never be exposed to browser JavaScript.
+### Steps
+1. Clone the repository and install dependencies:
+   ```bash
+   git checkout <feature-branch>
+   npm install
+   ```
 
-## Google Sheets Lead Ingestion
+2. Create `.env` file based on `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
 
-1. Create a Google Sheet with headers: `Business Name` (required), `Website`, `Contact Name`, `Email`, `Phone`, `Business Category`, `Location`, and `Notes`.
-2. Follow `docs/google-sheets.md` to deploy the Google Apps Script Web App.
-3. Set `GOOGLE_SHEETS_SCRIPT_URL` and `GOOGLE_SHEETS_API_SECRET` in `.env`.
-4. On `/leads.html`, use **Import from Google Sheets**. The backend reads the configured URL and secret, validates rows, skips duplicates, and reports import results.
+3. Generate your administrator password hash:
+   ```bash
+   npm run hash-password
+   ```
+   Paste the generated bcrypt string into `ADMIN_PASSWORD_HASH` and supply a 32+ character random string for `SESSION_SECRET`.
 
-## AI Lead Reviewer
+4. Start development server:
+   ```bash
+   npm run dev
+   ```
+   Or production start:
+   ```bash
+   npm start
+   ```
 
-Set `TAVILY_API_KEY`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL` in `.env`. On the Leads page, use **AI Review** to gather web evidence through Tavily and generate a structured SMMA qualification assessment through OpenRouter. Verify evidence before acting on a recommendation; AI scores are decision support, not proof.
+5. Open [http://localhost:10000](http://localhost:10000) in your browser.
 
-## Automated Testing
+---
 
-Run `npm test`. The suite uses Node's built-in test runner and mocks external services.
+## 3. Database Migrations
 
-## Current implementation status
+Agency Jarvis uses Supabase PostgreSQL. Migrations are organized sequentially in `database/migrations/`:
 
-- Step 1 — Project foundation and Render health endpoint.
-- Step 2 — Administrator password authentication and protected pages.
-- Step 3 — Supabase schema and server-side client.
-- Step 4 — Google Sheets lead ingestion.
-- Step 5 — Tavily research and OpenRouter lead qualification.
-- Step 6 — SMTP outreach with explicit approval (planned).
-- Step 7 — Buffer social scheduling with approval (planned).
-- Step 8 — Workbench and design brief workflow (planned).
-- Step 9 — Render production deployment and verification.
+1. `001_initial_schema.sql` — Baseline schema (`leads`, `lead_research`, `outreach_records`, `social_content`, `app_settings`).
+2. `002_lead_reviewer_compatibility.sql` — Compatibility enhancements for lead qualification fields.
+3. `003_mvp_extensions.sql` — Adds `clients`, `workbench_tasks`, `approvals`, `activity_logs`, and audit columns for outreach and social tables.
+
+### Applying Migrations
+- Log into your Supabase Dashboard → SQL Editor.
+- If running on a new instance, execute `001_initial_schema.sql`, `002_lead_reviewer_compatibility.sql`, and `003_mvp_extensions.sql`.
+- Migration `003_mvp_extensions.sql` is strictly additive and non-destructive.
+
+---
+
+## 4. Google Sheets Lead Ingestion Setup
+
+1. Create a Google Sheet with columns:
+   `Business Name`, `Website`, `Contact Name`, `Email`, `Phone`, `Business Category`, `Location`, `Notes`.
+2. In Google Sheets, navigate to **Extensions → Apps Script**.
+3. Paste the Apps Script code found in `docs/google-sheets.md`.
+4. Set your `API_SECRET` in the script.
+5. Click **Deploy → New deployment → Web app** (Execute as: *Me*, Who has access: *Anyone*).
+6. Copy the Web App URL and configure `GOOGLE_SHEETS_SCRIPT_URL` and `GOOGLE_SHEETS_API_SECRET` in your environment.
+7. Prospects can now be ingested manually via the **Leads** page or automated via webhook.
+
+---
+
+## 5. External Service Setup
+
+### OpenRouter API
+- Create an account at [openrouter.ai](https://openrouter.ai) and generate an API key.
+- Set `OPENROUTER_API_KEY` and optional `OPENROUTER_MODEL`.
+
+### Tavily API
+- Obtain an API key from [tavily.com](https://tavily.com).
+- Set `TAVILY_API_KEY`.
+
+### SMTP Email
+- Provide standard credentials for your transactional email provider (Mailgun, SendGrid, Amazon SES, Postmark, etc.):
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
+- To prevent real emails from being sent during testing, set `SMTP_DEV_MODE=true`.
+
+### Buffer Publishing
+- Create a developer app or generate an access token in your Buffer dashboard.
+- Set `BUFFER_ACCESS_TOKEN`.
+- Connected channels are automatically retrieved in the **Social Studio** and **Settings** pages.
+
+---
+
+## 6. Automated Testing
+
+Run the test suite:
+```bash
+npm test
+```
+The test suite utilizes Node's built-in test runner (`node:test`) and mocks all external APIs (OpenRouter, Tavily, Buffer, SMTP) to prevent real API calls or outbound emails.
+
+---
+
+## 7. Render Web Service Deployment
+
+Agency Jarvis is pre-configured for Render via `render.yaml` or as a standard Node Web Service:
+
+1. Create a **New Web Service** on Render connected to this repository.
+2. Configure settings:
+   - **Environment**: `Node`
+   - **Node Version**: `22`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+   - **Health Check Path**: `/health`
+3. Configure Environment Variables in Render Dashboard:
+   - `NODE_ENV=production`
+   - `PORT=10000`
+   - `ADMIN_PASSWORD_HASH`
+   - `SESSION_SECRET`
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `OPENROUTER_API_KEY`
+   - `OPENROUTER_MODEL`
+   - `TAVILY_API_KEY`
+   - `SMTP_HOST`
+   - `SMTP_PORT`
+   - `SMTP_USER`
+   - `SMTP_PASSWORD`
+   - `SMTP_FROM`
+   - `BUFFER_ACCESS_TOKEN`
+   - `GOOGLE_SHEETS_SCRIPT_URL`
+   - `GOOGLE_SHEETS_API_SECRET`
