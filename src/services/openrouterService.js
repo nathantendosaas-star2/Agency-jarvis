@@ -1,4 +1,9 @@
-const DEFAULT_MODEL = "google/gemma-4-26b-a4b-it:free";
+const DEFAULT_MODEL = "gemini-3.8-flash";
+const SUPPORTED_GEMINI_MODELS = Object.freeze([
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash-lite"
+]);
 
 const REVIEW_SYSTEM_PROMPT = `You are Agency Jarvis's Senior SMMA Lead Qualification and Research Specialist.
 Your task is to analyze prospective businesses for Social Media Marketing Agency (SMMA) services based strictly on the provided lead details and web research results.
@@ -30,7 +35,7 @@ You MUST output valid, parseable JSON conforming EXACTLY to the following schema
 }`;
 
 function sanitizeJsonResponse(text) {
-  let cleaned = text.trim();
+  let cleaned = String(text || "").trim();
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "").trim();
   }
@@ -38,19 +43,14 @@ function sanitizeJsonResponse(text) {
 }
 
 function validateEvaluation(data) {
-  if (!data || typeof data !== "object") {
-    throw new Error("Evaluation response must be an object.");
-  }
-  if (typeof data.summary !== "string" || !data.summary.trim()) {
-    throw new Error("Missing or invalid summary in evaluation.");
-  }
-  if (typeof data.qualification_score !== "number" || isNaN(data.qualification_score) || data.qualification_score < 0 || data.qualification_score > 100) {
+  if (!data || typeof data !== "object") throw new Error("Evaluation response must be an object.");
+  if (typeof data.summary !== "string" || !data.summary.trim()) throw new Error("Missing or invalid summary in evaluation.");
+  if (typeof data.qualification_score !== "number" || !Number.isFinite(data.qualification_score) || data.qualification_score < 0 || data.qualification_score > 100) {
     throw new Error("Missing or invalid qualification_score (must be number 0-100).");
   }
   if (typeof data.qualification_reasoning !== "string" || !data.qualification_reasoning.trim()) {
     throw new Error("Missing or invalid qualification_reasoning.");
   }
-
   return {
     summary: data.summary.trim(),
     services_offered: Array.isArray(data.services_offered) ? data.services_offered.map(String) : [],
@@ -65,31 +65,97 @@ function validateEvaluation(data) {
   };
 }
 
-async function callOpenRouter({ messages, temperature = 0.3, responseFormat = null, model = null, maxTokens = 2000, apiKey: passedApiKey = null }) {
-  const apiKey = passedApiKey || process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY is not configured.");
+function getAIProvider() {
+  const provider = (process.env.AI_PROVIDER || "gemini").trim().toLowerCase();
+  if (!["gemini", "openrouter"].includes(provider)) {
+    throw new Error("AI_PROVIDER must be either 'gemini' or 'openrouter'.");
   }
+  return provider;
+}
 
-  const selectedModel = model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
-  const endpoint = "https://openrouter.ai/api/v1/chat/completions";
+function getSelectedGeminiModel(model = null) {
+  const selectedModel = model || process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  if (!SUPPORTED_GEMINI_MODELS.includes(selectedModel)) {
+    throw new Error(`Unsupported GEMINI_MODEL "${selectedModel}". Choose one of: ${SUPPORTED_GEMINI_MODELS.join(", ")}.`);
+  }
+  return selectedModel;
+}
 
-  const bodyPayload = {
-    model: selectedModel,
-    temperature,
-    max_tokens: maxTokens,
-    messages
+function getMessageText(content) {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content.map((part) => typeof part === "string" ? part : (part?.text || "")).join("\n");
+  }
+  return String(content ?? "");
+}
+
+async function callGemini({ messages, responseFormat = null, model = null, maxTokens = 2000, apiKey: passedApiKey = null }) {
+  const apiKey = passedApiKey || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
+
+  const selectedModel = getSelectedGeminiModel(model);
+  const systemMessages = messages.filter((message) => message.role === "system").map((message) => getMessageText(message.content));
+  const contents = messages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: getMessageText(message.content) }]
+    }));
+
+  if (contents.length === 0) throw new Error("At least one user or assistant message is required.");
+
+  const generationConfig = { maxOutputTokens: maxTokens };
+  if (responseFormat?.type === "json_object") generationConfig.responseMimeType = "application/json";
+
+  const payload = {
+    contents,
+    generationConfig
   };
-
-  if (responseFormat) {
-    bodyPayload.response_format = responseFormat;
-  }
+  if (systemMessages.length) payload.systemInstruction = { parts: [{ text: systemMessages.join("\n\n") }] };
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
-
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = result.error?.message || JSON.stringify(result);
+      throw new Error(`Gemini API error (${response.status}): ${detail}`);
+    }
+
+    const candidate = result.candidates?.[0];
+    const text = candidate?.content?.parts?.map((part) => part.text || "").join("").trim();
+    if (!text) {
+      const reason = candidate?.finishReason || result.promptFeedback?.blockReason || "no text returned";
+      throw new Error(`Gemini returned an empty completion (${reason}).`);
+    }
+    return text;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function callOpenRouter({ messages, temperature = 0.3, responseFormat = null, model = null, maxTokens = 2000, apiKey: passedApiKey = null }) {
+  const apiKey = passedApiKey || process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured.");
+
+  const selectedModel = model || process.env.OPENROUTER_MODEL || "openrouter/free";
+  const bodyPayload = { model: selectedModel, temperature, max_tokens: maxTokens, messages };
+  if (responseFormat) bodyPayload.response_format = responseFormat;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -100,35 +166,32 @@ async function callOpenRouter({ messages, temperature = 0.3, responseFormat = nu
       body: JSON.stringify(bodyPayload),
       signal: controller.signal
     });
-
+    const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-      let errorDetail = "";
-      try {
-        const errJson = await response.json();
-        errorDetail = errJson.error ? (errJson.error.message || JSON.stringify(errJson.error)) : JSON.stringify(errJson);
-      } catch {
-        errorDetail = await response.text();
-      }
-      throw new Error(`OpenRouter API error (${response.status}): ${errorDetail}`);
+      const detail = result.error?.message || JSON.stringify(result);
+      throw new Error(`OpenRouter API error (${response.status}): ${detail}`);
     }
-
-    const result = await response.json();
-    const choice = result.choices && result.choices[0];
-    if (!choice || !choice.message || !choice.message.content) {
+    const content = result.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
       throw new Error("OpenRouter returned an empty or invalid completion.");
     }
-
-    return choice.message.content;
+    return content;
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
+// Kept under its historical name so existing agents continue to work.
+// AI_PROVIDER selects the backend for every agent call, not just lead review.
+async function callAI(options) {
+  const provider = getAIProvider();
+  return provider === "gemini" ? callGemini(options) : callOpenRouter(options);
+}
+
 async function evaluateLeadWithOpenRouter(lead, researchData, options = {}) {
-  const apiKey = options.apiKey || process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY is not configured.");
-  }
+  const provider = getAIProvider();
+  const apiKey = options.apiKey || (provider === "gemini" ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY);
+  if (!apiKey) throw new Error(provider === "gemini" ? "GEMINI_API_KEY is not configured." : "OPENROUTER_API_KEY is not configured.");
 
   const leadContext = {
     business_name: lead.business_name,
@@ -138,17 +201,15 @@ async function evaluateLeadWithOpenRouter(lead, researchData, options = {}) {
     location: lead.location || "Not provided",
     notes: lead.notes || "None"
   };
-
   const researchContext = {
     query: researchData.query || "",
     tavily_answer: researchData.answer || null,
-    sources: (researchData.sources || []).map((s) => ({
-      title: s.title,
-      url: s.url,
-      snippet: s.content ? s.content.slice(0, 500) : ""
+    sources: (researchData.sources || []).map((source) => ({
+      title: source.title,
+      url: source.url,
+      snippet: source.content ? source.content.slice(0, 500) : ""
     }))
   };
-
   const userPrompt = `Please evaluate the following prospect lead for SMMA services using this verified research:
 
 LEAD DETAILS:
@@ -159,7 +220,7 @@ ${JSON.stringify(researchContext, null, 2)}
 
 Output your evaluation strictly in the required JSON format.`;
 
-  const rawContent = await callOpenRouter({
+  const rawContent = await callAI({
     messages: [
       { role: "system", content: REVIEW_SYSTEM_PROMPT },
       { role: "user", content: userPrompt }
@@ -170,28 +231,28 @@ Output your evaluation strictly in the required JSON format.`;
     apiKey
   });
 
-  const cleanedContent = sanitizeJsonResponse(rawContent);
-
   let parsedJson;
   try {
-    parsedJson = JSON.parse(cleanedContent);
+    parsedJson = JSON.parse(sanitizeJsonResponse(rawContent));
   } catch (err) {
     throw new Error(`Failed to parse AI response as JSON: ${err.message}. Content was: ${rawContent.slice(0, 300)}`);
   }
-
   const validated = validateEvaluation(parsedJson);
-
-  if (validated.research_sources.length === 0 && researchData.sources && researchData.sources.length > 0) {
-    validated.research_sources = researchData.sources.map((s) => s.url).filter(Boolean);
+  if (validated.research_sources.length === 0 && researchData.sources?.length) {
+    validated.research_sources = researchData.sources.map((source) => source.url).filter(Boolean);
   }
-
   return validated;
 }
 
 module.exports = {
   DEFAULT_MODEL,
+  SUPPORTED_GEMINI_MODELS,
+  getAIProvider,
+  getSelectedGeminiModel,
   sanitizeJsonResponse,
   validateEvaluation,
+  callAI,
+  callGemini,
   callOpenRouter,
   evaluateLeadWithOpenRouter
 };
