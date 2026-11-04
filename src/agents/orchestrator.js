@@ -59,7 +59,8 @@ async function executeTask({ taskType, prompt, clientId = null, leadId = null })
     if (lead) contextInfo.lead = lead;
   }
 
-  let resultMarkdown = "";\n  let artifact = null;
+  let resultMarkdown = "";
+  let artifact = null;
 
   switch (taskType) {
     case "research": {
