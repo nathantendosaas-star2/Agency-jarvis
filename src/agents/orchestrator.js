@@ -141,10 +141,10 @@ async function executeTask({ taskType, prompt, clientId = null, leadId = null })
       }
       const synthesis = await synthesizeFullResearch(prompt, searchQueries, sources);
       const sourceAppendix = sources.map((source, index) =>
-        `- [S${index + 1}] [${source.title || source.url}](${source.url})\\n  - Search query: ${source.query}\\n  - Evidence: ${(source.raw_content || source.content || "No extractable text returned").slice(0, 1200).replace(/\\s+/g, " ")}`
-      ).join("\\n");
+        `- [S${index + 1}] [${source.title || source.url}](${source.url})\n  - Search query: ${source.query}\n  - Evidence: ${(source.raw_content || source.content || "No extractable text returned").slice(0, 1200).replace(/\s+/g, " ")}`
+      ).join("\n");
       const failedSearches = searchRuns.filter((run) => run.error);
-      resultMarkdown = `# Complete Web Research Report\\n\\n**Original Request:**\\n\\n${prompt}\\n\\n## Search plan\\n${searchQueries.map((query) => `- ${query}`).join("\\n")}\\n\\n## Full research and analysis\\n\\n${synthesis}\\n\\n## Retrieved source evidence (full source index)\\n\\n${sourceAppendix}${failedSearches.length ? `\\n\\n## Search limitations\\n${failedSearches.map((run) => `- ${run.query}: ${run.error}`).join("\\n")}` : ""}`;
+      resultMarkdown = `# Complete Web Research Report\n\n**Original Request:**\n\n${prompt}\n\n## Search plan\n${searchQueries.map((query) => `- ${query}`).join("\n")}\n\n## Full research and analysis\n\n${synthesis}\n\n## Retrieved source evidence (full source index)\n\n${sourceAppendix}${failedSearches.length ? `\n\n## Search limitations\n${failedSearches.map((run) => `- ${run.query}: ${run.error}`).join("\n")}` : ""}`;
       break;
     }
     case "redesign_brief":
