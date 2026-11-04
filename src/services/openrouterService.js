@@ -1,4 +1,5 @@
 const { getSupabaseClient, isSupabaseConfigured } = require("../config/supabase");
+const { GEMINI_FUNCTION_DECLARATIONS, executeAgentTool, readWorkspaceFile } = require("./agentTools");
 
 const DEFAULT_MODEL = "gemini-3.8-flash";
 let runtimeGeminiModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
@@ -182,6 +183,71 @@ async function callGemini({ messages, responseFormat = null, model = null, maxTo
       throw new Error(`Gemini returned an empty completion (${reason}).`);
     }
     return responseText;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function callGeminiWithTools({ systemPrompt, userPrompt, model = null, maxTokens = 6000, maxToolTurns = 8 }) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
+  const selectedModel = model ? getSelectedGeminiModel(model) : await loadSelectedGeminiModel();
+  const contents = [{ role: "user", parts: [{ text: userPrompt }] }];
+  const writtenPaths = [];
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+  try {
+    for (let turn = 0; turn < maxToolTurns; turn += 1) {
+      const payload = {
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents,
+        tools: [{ functionDeclarations: GEMINI_FUNCTION_DECLARATIONS }],
+        generationConfig: { maxOutputTokens: maxTokens }
+      };
+      let response;
+      let result = {};
+      for (let attempt = 0; attempt <= 2; attempt += 1) {
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        result = await response.json().catch(() => ({}));
+        if (response.ok) break;
+        const retryable = [429, 500, 502, 503, 504, 543].includes(response.status);
+        if (!retryable || attempt === 2) {
+          throw new Error(`Gemini API error (${response.status}): ${result.error?.message || JSON.stringify(result)}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, Math.min(8000, 1000 * (2 ** attempt))));
+      }
+
+      const candidate = result.candidates?.[0];
+      const parts = candidate?.content?.parts || [];
+      const calls = parts.filter((part) => part.functionCall);
+      if (!calls.length) {
+        const text = parts.map((part) => part.text || "").join("").trim();
+        return { text, writtenPaths };
+      }
+
+      contents.push(candidate.content);
+      for (const part of calls) {
+        const { name, args = {} } = part.functionCall;
+        let toolResult;
+        try {
+          toolResult = await executeAgentTool(name, args);
+          if (name === "write_workspace_file" && toolResult?.written) writtenPaths.push(toolResult.path);
+        } catch (error) {
+          toolResult = { error: error.message };
+        }
+        contents.push({
+          role: "user",
+          parts: [{ functionResponse: { name, response: { result: toolResult } } }]
+        });
+      }
+    }
+    throw new Error("Jarvis reached the maximum number of tool-execution steps without completing the task.");
   } finally {
     clearTimeout(timeoutId);
   }
