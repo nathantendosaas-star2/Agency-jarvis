@@ -19,9 +19,15 @@ function createSettingsRouter() {
         configured: isSupabaseConfigured(),
         url: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\/\/[^/]{4})[^/]+/, "$1***") : null
       },
+      ai: {
+        provider: getAIProvider(),
+        configured: getAIProvider() === "gemini" ? Boolean(process.env.GEMINI_API_KEY) : Boolean(process.env.OPENROUTER_API_KEY),
+        model: getAIProvider() === "gemini" ? getSelectedGeminiModel() : (process.env.OPENROUTER_MODEL || "openrouter/free"),
+        availableModels: ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
+      },
       openrouter: {
         configured: Boolean(process.env.OPENROUTER_API_KEY),
-        model: process.env.OPENROUTER_MODEL || "google/gemma-4-26b-a4b-it:free"
+        model: process.env.OPENROUTER_MODEL || "openrouter/free"
       },
       tavily: {
         configured: Boolean(process.env.TAVILY_API_KEY)
@@ -56,20 +62,22 @@ function createSettingsRouter() {
     }
   });
 
-  // POST /api/settings/test/openrouter
-  router.post("/test/openrouter", async (_req, res) => {
+  // POST /api/settings/test/ai - Test the configured AI provider
+  router.post("/test/ai", async (_req, res) => {
     res.set("Cache-Control", "no-store");
-    if (!process.env.OPENROUTER_API_KEY) {
-      return res.status(200).json({ success: false, message: "OPENROUTER_API_KEY not configured." });
+    const provider = getAIProvider();
+    const configured = provider === "gemini" ? Boolean(process.env.GEMINI_API_KEY) : Boolean(process.env.OPENROUTER_API_KEY);
+    if (!configured) {
+      return res.status(200).json({ success: false, message: provider === "gemini" ? "GEMINI_API_KEY not configured." : "OPENROUTER_API_KEY not configured." });
     }
     try {
-      const reply = await callOpenRouter({
+      const reply = await callAI({
         messages: [{ role: "user", content: "Reply with the word PONG" }],
         maxTokens: 10
       });
-      return res.status(200).json({ success: true, message: `OpenRouter responded: "${reply.trim()}"` });
+      return res.status(200).json({ success: true, message: `${provider} responded: "${reply.trim()}"` });
     } catch (err) {
-      return res.status(200).json({ success: false, message: `OpenRouter test failed: ${err.message}` });
+      return res.status(200).json({ success: false, message: `${provider} test failed: ${err.message}` });
     }
   });
 
