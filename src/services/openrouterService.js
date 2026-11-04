@@ -253,6 +253,7 @@ module.exports = {
   validateEvaluation,
   callAI,
   callGemini,
-  callOpenRouter,
+  callOpenRouter: callAI,
+  callOpenRouterProvider: callOpenRouter,
   evaluateLeadWithOpenRouter
 };
