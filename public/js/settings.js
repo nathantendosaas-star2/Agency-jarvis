@@ -2,20 +2,20 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   const badgeSupabase = document.getElementById("badge-supabase");
-  const badgeOpenRouter = document.getElementById("badge-openrouter");
+  const badgeAI = document.getElementById("badge-ai");
   const badgeTavily = document.getElementById("badge-tavily");
   const badgeSmtp = document.getElementById("badge-smtp");
   const badgeBuffer = document.getElementById("badge-buffer");
   const badgeSheets = document.getElementById("badge-sheets");
 
   const testSupabaseBtn = document.getElementById("test-supabase-btn");
-  const testOpenRouterBtn = document.getElementById("test-openrouter-btn");
+  const testAIButton = document.getElementById("test-ai-btn");
   const testTavilyBtn = document.getElementById("test-tavily-btn");
   const testSmtpBtn = document.getElementById("test-smtp-btn");
   const testBufferBtn = document.getElementById("test-buffer-btn");
 
   const resSupabase = document.getElementById("res-supabase");
-  const resOpenRouter = document.getElementById("res-openrouter");
+  const resAI = document.getElementById("res-ai");
   const resTavily = document.getElementById("res-tavily");
   const resSmtp = document.getElementById("res-smtp");
   const resBuffer = document.getElementById("res-buffer");
@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
 
       updateBadge(badgeSupabase, data.supabase?.configured);
-      updateBadge(badgeOpenRouter, data.openrouter?.configured);
+      updateBadge(badgeAI, data.ai?.configured);
       updateBadge(badgeTavily, data.tavily?.configured);
       updateBadge(badgeSmtp, data.smtp?.configured);
       updateBadge(badgeBuffer, data.buffer?.configured);
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   bindTest(testSupabaseBtn, resSupabase, "/api/settings/test/supabase");
-  bindTest(testOpenRouterBtn, resOpenRouter, "/api/settings/test/openrouter");
+  bindTest(testAIButton, resAI, "/api/settings/test/ai");
   bindTest(testTavilyBtn, resTavily, "/api/settings/test/tavily");
   bindTest(testSmtpBtn, resSmtp, "/api/settings/test/smtp");
   bindTest(testBufferBtn, resBuffer, "/api/settings/test/buffer");
