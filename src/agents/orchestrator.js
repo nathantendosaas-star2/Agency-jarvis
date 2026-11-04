@@ -5,7 +5,8 @@ const {
   generateSmmaProposal,
   generateMarketingStrategy,
   generateCreativeBrief,
-  generateClientRecommendations
+  generateClientRecommendations,
+  generateLandingPage
 } = require("./creativeAgent");
 const { generateSocialContent } = require("./socialAgent");
 const { getClientById } = require("../services/clientsService");
@@ -30,6 +31,9 @@ Respond strictly in valid JSON format:
 }`;
 
 async function classifyTaskPrompt(promptText) {
+  if (/\b(landing page|one[- ]page website|single[- ]page website)\b/i.test(promptText) && /\b(build|create|design|make|generate|code|develop)\b/i.test(promptText)) {
+    return { task_type: "landing_page", reasoning: "The request explicitly asks to build a landing page." };
+  }
   const raw = await callAI({
     messages: [
       { role: "system", content: CLASSIFICATION_PROMPT },
@@ -88,13 +92,20 @@ async function executeTask({ taskType, prompt, clientId = null, leadId = null })
     case "client_recommendations":
       resultMarkdown = await generateClientRecommendations(contextInfo);
       break;
+    case "landing_page": {
+      const page = await generateLandingPage(prompt, contextInfo);
+      resultMarkdown = page.html;
+      artifact = { type: "html", path: page.path, note: page.note || "" };
+      break;
+    }
     default:
       throw new Error(`Unsupported task type: ${taskType}`);
   }
 
   return {
     taskType,
-    result: resultMarkdown
+    result: resultMarkdown,
+    artifact
   };
 }
 
