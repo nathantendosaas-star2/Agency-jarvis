@@ -1,4 +1,8 @@
+const { getSupabaseClient, isSupabaseConfigured } = require("../config/supabase");
+
 const DEFAULT_MODEL = "gemini-3.8-flash";
+let runtimeGeminiModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+let runtimeModelLoaded = false;
 const SUPPORTED_GEMINI_MODELS = Object.freeze([
   "gemini-3.8-flash",
   "gemini-3.6-flash",
@@ -74,11 +78,49 @@ function getAIProvider() {
 }
 
 function getSelectedGeminiModel(model = null) {
-  const selectedModel = model || process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const selectedModel = model || runtimeGeminiModel || process.env.GEMINI_MODEL || DEFAULT_MODEL;
   if (!SUPPORTED_GEMINI_MODELS.includes(selectedModel)) {
     throw new Error(`Unsupported GEMINI_MODEL "${selectedModel}". Choose one of: ${SUPPORTED_GEMINI_MODELS.join(", ")}.`);
   }
   return selectedModel;
+}
+
+async function loadSelectedGeminiModel() {
+  if (runtimeModelLoaded) return runtimeGeminiModel;
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await getSupabaseClient()
+        .from("app_settings")
+        .select("value")
+        .eq("key", "ai_config")
+        .maybeSingle();
+      if (error) throw error;
+      const savedModel = data?.value?.gemini_model;
+      if (savedModel && SUPPORTED_GEMINI_MODELS.includes(savedModel)) runtimeGeminiModel = savedModel;
+    } catch (error) {
+      console.warn("Could not load saved AI model setting:", error.message);
+    }
+  }
+  runtimeModelLoaded = true;
+  return runtimeGeminiModel;
+}
+
+async function setSelectedGeminiModel(model) {
+  if (!SUPPORTED_GEMINI_MODELS.includes(model)) {
+    throw new Error(`Unsupported Gemini model. Choose one of: ${SUPPORTED_GEMINI_MODELS.join(", ")}.`);
+  }
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase must be configured to save the model selection.");
+  }
+  const { error } = await getSupabaseClient().from("app_settings").upsert({
+    key: "ai_config",
+    value: { gemini_model: model, provider: "gemini" },
+    updated_at: new Date().toISOString()
+  }, { onConflict: "key" });
+  if (error) throw error;
+  runtimeGeminiModel = model;
+  runtimeModelLoaded = true;
+  return runtimeGeminiModel;
 }
 
 function getMessageText(content) {
@@ -93,7 +135,7 @@ async function callGemini({ messages, responseFormat = null, model = null, maxTo
   const apiKey = passedApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
 
-  const selectedModel = getSelectedGeminiModel(model);
+  const selectedModel = model ? getSelectedGeminiModel(model) : await loadSelectedGeminiModel();
   const systemMessages = messages.filter((message) => message.role === "system").map((message) => getMessageText(message.content));
   const contents = messages
     .filter((message) => message.role !== "system")
@@ -116,7 +158,7 @@ async function callGemini({ messages, responseFormat = null, model = null, maxTo
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`, {
+    let response;\n    let result = {};\n    for (let attempt = 0; attempt <= 2; attempt += 1) {\n      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
