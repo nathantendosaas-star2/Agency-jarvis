@@ -148,39 +148,40 @@ async function callGemini({ messages, responseFormat = null, model = null, maxTo
 
   const generationConfig = { maxOutputTokens: maxTokens };
   if (responseFormat?.type === "json_object") generationConfig.responseMimeType = "application/json";
-
-  const payload = {
-    contents,
-    generationConfig
-  };
+  const payload = { contents, generationConfig };
   if (systemMessages.length) payload.systemInstruction = { parts: [{ text: systemMessages.join("\n\n") }] };
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
-    let response;\n    let result = {};\n    for (let attempt = 0; attempt <= 2; attempt += 1) {\n      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
+    let response;
+    let result = {};
+    for (let attempt = 0; attempt <= 2; attempt += 1) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      result = await response.json().catch(() => ({}));
+      if (response.ok) break;
 
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const detail = result.error?.message || JSON.stringify(result);
-      throw new Error(`Gemini API error (${response.status}): ${detail}`);
+      const retryable = [429, 500, 502, 503, 504, 543].includes(response.status);
+      if (!retryable || attempt === 2) {
+        const detail = result.error?.message || JSON.stringify(result);
+        throw new Error(`Gemini API error (${response.status}): ${detail}`);
+      }
+      const delay = Math.min(8000, 1000 * (2 ** attempt)) + Math.floor(Math.random() * 350);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
     const candidate = result.candidates?.[0];
-    const text = candidate?.content?.parts?.map((part) => part.text || "").join("").trim();
-    if (!text) {
+    const responseText = candidate?.content?.parts?.map((part) => part.text || "").join("").trim();
+    if (!responseText) {
       const reason = candidate?.finishReason || result.promptFeedback?.blockReason || "no text returned";
       throw new Error(`Gemini returned an empty completion (${reason}).`);
     }
-    return text;
+    return responseText;
   } finally {
     clearTimeout(timeoutId);
   }
