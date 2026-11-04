@@ -136,7 +136,8 @@ Include:
 }
 
 module.exports = {
-  generateLandingPage,\n  generateRedesignBrief,
+  generateLandingPage,
+  generateRedesignBrief,
   generateSmmaProposal,
   generateMarketingStrategy,
   generateCreativeBrief,
