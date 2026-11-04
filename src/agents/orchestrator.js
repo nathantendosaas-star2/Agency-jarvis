@@ -94,7 +94,8 @@ async function executeTask({ taskType, prompt, clientId = null, leadId = null })
 
   switch (taskType) {
     case "research": {
-      const searchQuery = await createTavilySearchQuery(prompt);\n      const tavilyRes = await researchBusinessWithTavily(searchQuery);
+      const searchQuery = await createTavilySearchQuery(prompt);
+      const tavilyRes = await researchBusinessWithTavily(searchQuery);
       const answer = tavilyRes.answer || "No direct answer synthesized.";
       const sourcesMd = (tavilyRes.sources || [])
         .map((s) => `- [${s.title || s.url}](${s.url}): ${s.content.slice(0, 180)}…`)
