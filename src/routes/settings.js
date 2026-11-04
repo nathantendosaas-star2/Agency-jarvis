@@ -11,6 +11,7 @@ function createSettingsRouter() {
   // GET /api/settings/status - Safe configuration health matrix
   router.get("/status", async (_req, res) => {
     res.set("Cache-Control", "no-store");
+    await loadSelectedGeminiModel();
     const smtpConfig = getSmtpConfig();
     const bufferConfig = getBufferConfig();
 
