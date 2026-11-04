@@ -232,6 +232,7 @@ async function callGeminiWithTools({ systemPrompt, userPrompt, model = null, max
       }
 
       contents.push(candidate.content);
+      const functionResponses = [];
       for (const part of calls) {
         const { name, args = {} } = part.functionCall;
         let toolResult;
@@ -241,11 +242,9 @@ async function callGeminiWithTools({ systemPrompt, userPrompt, model = null, max
         } catch (error) {
           toolResult = { error: error.message };
         }
-        contents.push({
-          role: "user",
-          parts: [{ functionResponse: { name, response: { result: toolResult } } }]
-        });
+        functionResponses.push({ functionResponse: { name, response: { result: toolResult } } });
       }
+      contents.push({ role: "user", parts: functionResponses });
     }
     throw new Error("Jarvis reached the maximum number of tool-execution steps without completing the task.");
   } finally {
