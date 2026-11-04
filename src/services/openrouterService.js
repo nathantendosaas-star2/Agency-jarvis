@@ -364,6 +364,7 @@ module.exports = {
   validateEvaluation,
   callAI,
   callGemini,
+  callGeminiWithTools,
   callOpenRouter: callAI,
   callOpenRouterProvider: callOpenRouter,
   evaluateLeadWithOpenRouter
