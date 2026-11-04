@@ -57,7 +57,7 @@ async function createTavilySearchQuery(taskPrompt) {
       },
       {
         role: "user",
-        content: `Create a concise Tavily search query for this research task:\\n${String(taskPrompt || "").slice(0, 12000)}`
+        content: `Create a concise Tavily search query for this research task:\n${String(taskPrompt || "").slice(0, 12000)}`
       }
     ],
     temperature: 0.1,
