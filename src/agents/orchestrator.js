@@ -47,6 +47,36 @@ async function classifyTaskPrompt(promptText) {
   return JSON.parse(cleaned);
 }
 
+
+async function createTavilySearchQuery(taskPrompt) {
+  const raw = await callAI({
+    messages: [
+      {
+        role: "system",
+        content: `You are a web-search query planner. Convert the user's full research task into ONE concise, high-value Tavily search query. Extract the subject, geography, target business types, and most important facts needed. Do not answer the task and do not repeat its instructions, deliverable format, scoring rubric, or output requirements. Return only JSON: {"query":"..."}. The query must be under 800 characters and suitable for a web search.`
+      },
+      {
+        role: "user",
+        content: `Create a concise Tavily search query for this research task:\n${String(taskPrompt || "").slice(0, 12000)}`
+      }
+    ],
+    temperature: 0.1,
+    responseFormat: { type: "json_object" },
+    maxTokens: 300
+  });
+
+  let parsed;
+  try {
+    parsed = JSON.parse(sanitizeJsonResponse(raw));
+  } catch (error) {
+    throw new Error(`Could not create a valid Tavily search query: ${error.message}`);
+  }
+  const query = typeof parsed.query === "string" ? parsed.query.trim() : "";
+  if (!query) throw new Error("The AI did not return a Tavily search query.");
+  if (query.length > 1500) throw new Error(`AI-generated Tavily query is too long (${query.length} characters; maximum 1500).`);
+  return query;
+}
+
 async function executeTask({ taskType, prompt, clientId = null, leadId = null }) {
   let contextInfo = { prompt };
 
@@ -64,12 +94,13 @@ async function executeTask({ taskType, prompt, clientId = null, leadId = null })
 
   switch (taskType) {
     case "research": {
-      const tavilyRes = await researchBusinessWithTavily(prompt);
+      const searchQuery = await createTavilySearchQuery(prompt);
+      const tavilyRes = await researchBusinessWithTavily(searchQuery);
       const answer = tavilyRes.answer || "No direct answer synthesized.";
       const sourcesMd = (tavilyRes.sources || [])
         .map((s) => `- [${s.title || s.url}](${s.url}): ${s.content.slice(0, 180)}…`)
         .join("\n");
-      resultMarkdown = `# Web Research Intelligence\n\n**Query:** ${prompt}\n\n## Synthesis\n${answer}\n\n## Sources Found\n${sourcesMd}`;
+      resultMarkdown = `# Web Research Intelligence\n\n**Original Request:** ${prompt}\n\n**Web Search Query:** ${searchQuery}\n\n## Synthesis\n${answer}\n\n## Sources Found\n${sourcesMd}`;
       break;
     }
     case "redesign_brief":

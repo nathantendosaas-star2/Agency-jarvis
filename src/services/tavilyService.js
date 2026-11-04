@@ -4,10 +4,14 @@ async function researchBusinessWithTavily(query, options = {}) {
     throw new Error("TAVILY_API_KEY is not configured.");
   }
 
+  const normalizedQuery = typeof query === "string" ? query.trim() : "";
+  if (!normalizedQuery) throw new Error("A non-empty Tavily search query is required.");
+  if (normalizedQuery.length > 1500) throw new Error(`Tavily query is too long (${normalizedQuery.length} characters; maximum 1500).`);
+
   const endpoint = "https://api.tavily.com/search";
   const body = {
     api_key: apiKey,
-    query: query,
+    query: normalizedQuery,
     search_depth: options.searchDepth || "advanced",
     include_answer: true,
     max_results: options.maxResults || 5
