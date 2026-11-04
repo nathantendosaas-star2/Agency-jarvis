@@ -10,6 +10,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const testSupabaseBtn = document.getElementById("test-supabase-btn");
   const testAIButton = document.getElementById("test-ai-btn");
+  const aiModelSelect = document.getElementById("ai-model-select");
+  const saveAIModelButton = document.getElementById("save-ai-model-btn");
   const testTavilyBtn = document.getElementById("test-tavily-btn");
   const testSmtpBtn = document.getElementById("test-smtp-btn");
   const testBufferBtn = document.getElementById("test-buffer-btn");
@@ -28,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       updateBadge(badgeSupabase, data.supabase?.configured);
       updateBadge(badgeAI, data.ai?.configured);
+      if (aiModelSelect && data.ai?.model) aiModelSelect.value = data.ai.model;
       updateBadge(badgeTavily, data.tavily?.configured);
       updateBadge(badgeSmtp, data.smtp?.configured);
       updateBadge(badgeBuffer, data.buffer?.configured);
@@ -68,6 +71,30 @@ document.addEventListener("DOMContentLoaded", () => {
         resultEl.className = "test-result-text status-error";
       } finally {
         btn.disabled = false;
+      }
+    });
+  }
+
+  if (saveAIModelButton) {
+    saveAIModelButton.addEventListener("click", async () => {
+      saveAIModelButton.disabled = true;
+      resAI.textContent = "Saving model…";
+      resAI.className = "test-result-text";
+      try {
+        const response = await fetch("/api/settings/ai-model", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: aiModelSelect.value })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not save model.");
+        resAI.textContent = `Saved. All new AI tasks will use ${data.model}.`;
+        resAI.className = "test-result-text status-success";
+      } catch (error) {
+        resAI.textContent = error.message;
+        resAI.className = "test-result-text status-error";
+      } finally {
+        saveAIModelButton.disabled = false;
       }
     });
   }
