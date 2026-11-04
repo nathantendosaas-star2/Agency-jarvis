@@ -1,4 +1,4 @@
-const { callOpenRouter, sanitizeJsonResponse } = require("../services/openrouterService");
+const { callAI, sanitizeJsonResponse } = require("../services/openrouterService");
 const { researchBusinessWithTavily } = require("../services/tavilyService");
 const {
   generateRedesignBrief,
@@ -30,7 +30,7 @@ Respond strictly in valid JSON format:
 }`;
 
 async function classifyTaskPrompt(promptText) {
-  const raw = await callOpenRouter({
+  const raw = await callAI({
     messages: [
       { role: "system", content: CLASSIFICATION_PROMPT },
       { role: "user", content: `Classify this task request:\n"${promptText}"` }
