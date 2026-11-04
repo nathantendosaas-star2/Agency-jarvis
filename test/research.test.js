@@ -7,13 +7,17 @@ const { executeTask } = require("../src/agents/orchestrator");
 test("research returns detailed synthesis and source evidence from multiple Tavily searches", async (t) => {
   const originalFetch = global.fetch;
   const originalKey = process.env.OPENROUTER_API_KEY;
+  const originalTavilyKey = process.env.TAVILY_API_KEY;
   process.env.OPENROUTER_API_KEY = "mock-openrouter-key";
+  process.env.TAVILY_API_KEY = "mock-tavily-key";
   const tavilyQueries = [];
 
   t.after(() => {
     global.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY;
     else process.env.OPENROUTER_API_KEY = originalKey;
+    if (originalTavilyKey === undefined) delete process.env.TAVILY_API_KEY;
+    else process.env.TAVILY_API_KEY = originalTavilyKey;
   });
 
   global.fetch = async (url, options = {}) => {
