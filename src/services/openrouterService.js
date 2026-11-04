@@ -292,6 +292,8 @@ module.exports = {
   SUPPORTED_GEMINI_MODELS,
   getAIProvider,
   getSelectedGeminiModel,
+  loadSelectedGeminiModel,
+  setSelectedGeminiModel,
   sanitizeJsonResponse,
   validateEvaluation,
   callAI,
