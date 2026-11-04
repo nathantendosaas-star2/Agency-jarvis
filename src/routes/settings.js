@@ -3,7 +3,7 @@ const { isSupabaseConfigured, getSupabaseClient } = require("../config/supabase"
 const { testSmtpConnection, getSmtpConfig } = require("../services/smtpService");
 const { testBufferConnection, getBufferConfig } = require("../services/bufferService");
 const { researchBusinessWithTavily } = require("../services/tavilyService");
-const { callAI, getAIProvider, getSelectedGeminiModel } = require("../services/openrouterService");
+const { callAI, getAIProvider, getSelectedGeminiModel, loadSelectedGeminiModel, setSelectedGeminiModel, SUPPORTED_GEMINI_MODELS } = require("../services/openrouterService");
 
 function createSettingsRouter() {
   const router = express.Router();
@@ -23,7 +23,7 @@ function createSettingsRouter() {
         provider: getAIProvider(),
         configured: getAIProvider() === "gemini" ? Boolean(process.env.GEMINI_API_KEY) : Boolean(process.env.OPENROUTER_API_KEY),
         model: getAIProvider() === "gemini" ? getSelectedGeminiModel() : (process.env.OPENROUTER_MODEL || "openrouter/free"),
-        availableModels: ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
+        availableModels: SUPPORTED_GEMINI_MODELS
       },
       openrouter: {
         configured: Boolean(process.env.OPENROUTER_API_KEY),
@@ -45,6 +45,28 @@ function createSettingsRouter() {
         configured: Boolean(process.env.GOOGLE_SHEETS_SCRIPT_URL)
       }
     });
+  });
+
+  // GET /api/settings/ai-model - Current runtime model selection
+  router.get("/ai-model", async (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    const model = await loadSelectedGeminiModel();
+    return res.json({ provider: getAIProvider(), model, availableModels: SUPPORTED_GEMINI_MODELS });
+  });
+
+  // PUT /api/settings/ai-model - Persist model selection without a server restart
+  router.put("/ai-model", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const { model } = req.body || {};
+    if (!SUPPORTED_GEMINI_MODELS.includes(model)) {
+      return res.status(400).json({ error: "Choose a supported Gemini model.", availableModels: SUPPORTED_GEMINI_MODELS });
+    }
+    try {
+      await setSelectedGeminiModel(model);
+      return res.json({ success: true, provider: "gemini", model });
+    } catch (err) {
+      return res.status(500).json({ error: `Could not save model selection: ${err.message}` });
+    }
   });
 
   // POST /api/settings/test/supabase
