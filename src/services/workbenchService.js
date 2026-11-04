@@ -57,7 +57,7 @@ async function runWorkbenchTask({ prompt, taskType, clientId = null, leadId = nu
   }
 
   try {
-    const { result } = await executeTask({
+    const { result, artifact } = await executeTask({
       taskType: resolvedType,
       prompt,
       clientId,
@@ -66,7 +66,8 @@ async function runWorkbenchTask({ prompt, taskType, clientId = null, leadId = nu
 
     const updatePayload = {
       status: "completed",
-      result: result
+      result: result,
+      metadata: artifact ? { ...(savedTask.metadata || {}), artifact_type: artifact.type, artifact_path: artifact.path, artifact_note: artifact.note } : (savedTask.metadata || {})
     };
 
     if (isSupabaseConfigured() && savedTask?.id) {
