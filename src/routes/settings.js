@@ -3,7 +3,7 @@ const { isSupabaseConfigured, getSupabaseClient } = require("../config/supabase"
 const { testSmtpConnection, getSmtpConfig } = require("../services/smtpService");
 const { testBufferConnection, getBufferConfig } = require("../services/bufferService");
 const { researchBusinessWithTavily } = require("../services/tavilyService");
-const { callOpenRouter } = require("../services/openrouterService");
+const { callAI, getAIProvider, getSelectedGeminiModel } = require("../services/openrouterService");
 
 function createSettingsRouter() {
   const router = express.Router();
