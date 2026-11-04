@@ -9,7 +9,7 @@ Agency Jarvis is an AI-powered operating system for running a Social Media Marke
 - **Backend**: Node.js 22+, Express.js.
 - **Frontend**: Plain HTML5, CSS3, and Vanilla JavaScript (No React, Vue, Tailwind, or build steps).
 - **Database**: Supabase PostgreSQL (`@supabase/supabase-js`).
-- **AI Gateway**: OpenRouter API (`google/gemma-4-26b-a4b-it:free` default).
+- **AI Gateway**: Google Gemini API by default, with OpenRouter available as an optional alternative.
 - **Web Intelligence**: Tavily API for evidence collection.
 - **Outbound Email**: SMTP (Nodemailer) with explicit administrator approval gating and safe dev sandbox.
 - **Social Scheduling**: Buffer API.
@@ -85,9 +85,14 @@ Agency Jarvis uses Supabase PostgreSQL. Migrations are organized sequentially in
 
 ## 5. External Service Setup
 
-### OpenRouter API
+### Google Gemini API (default)
+- Create an API key in [Google AI Studio](https://aistudio.google.com/apikey).
+- Set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `GEMINI_MODEL`.
+- Supported model IDs: `gemini-3.8-flash`, `gemini-3.6-flash`, and `gemini-3.5-flash-lite`. Change `GEMINI_MODEL` and restart the server to switch models.
+
+### OpenRouter API (optional alternative)
 - Create an account at [openrouter.ai](https://openrouter.ai) and generate an API key.
-- Set `OPENROUTER_API_KEY` and optional `OPENROUTER_MODEL`.
+- Set `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and optional `OPENROUTER_MODEL`.
 
 ### Tavily API
 - Obtain an API key from [tavily.com](https://tavily.com).

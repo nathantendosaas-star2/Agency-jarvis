@@ -9,11 +9,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const deliverableCard = document.getElementById("deliverable-card");
   const deliverableTitle = document.getElementById("deliverable-title");
   const deliverableContent = document.getElementById("deliverable-content");
+  const deliverablePreview = document.getElementById("deliverable-preview");
   const copyBtn = document.getElementById("copy-deliverable-btn");
   const downloadBtn = document.getElementById("download-deliverable-btn");
 
   const tasksTbody = document.getElementById("tasks-tbody");
   let activeDeliverableText = "";
+  let activeDeliverableType = "markdown";
 
   async function loadTasks() {
     try {
@@ -62,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const viewBtn = document.createElement("button");
         viewBtn.className = "table-btn secondary";
         viewBtn.textContent = "View Deliverable";
-        viewBtn.addEventListener("click", () => displayDeliverable(t.task_type, t.result));
+        viewBtn.addEventListener("click", () => displayDeliverable(t.task_type, t.result, t.metadata || {}));
         tdAction.appendChild(viewBtn);
       }
       tr.appendChild(tdAction);
@@ -71,10 +73,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function displayDeliverable(type, markdownText) {
-    activeDeliverableText = markdownText;
-    deliverableTitle.textContent = `${type.replace("_", " ").toUpperCase()} DELIVERABLE`;
-    deliverableContent.textContent = markdownText;
+  function displayDeliverable(type, content, metadata = {}) {
+    activeDeliverableText = content;
+    activeDeliverableType = metadata.artifact_type === "html" || type === "landing_page" ? "html" : "markdown";
+    deliverableTitle.textContent = activeDeliverableType === "html" ? "GENERATED HTML LANDING PAGE" : `${type.replace("_", " ").toUpperCase()} DELIVERABLE`;
+    if (activeDeliverableType === "html") {
+      deliverableContent.classList.add("hidden");
+      deliverablePreview.classList.remove("hidden");
+      deliverablePreview.srcdoc = content;
+      downloadBtn.textContent = "Download HTML";
+    } else {
+      deliverablePreview.classList.add("hidden");
+      deliverablePreview.srcdoc = "about:blank";
+      deliverableContent.classList.remove("hidden");
+      deliverableContent.textContent = content;
+      downloadBtn.textContent = "Download Markdown";
+    }
     deliverableCard.classList.remove("hidden");
     deliverableCard.scrollIntoView({ behavior: "smooth" });
   }
@@ -101,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!res.ok) throw new Error(data.error || "Execution failed");
 
       if (data.result) {
-        displayDeliverable(data.task_type, data.result);
+        displayDeliverable(data.task_type, data.result, data.metadata || {});
       }
       loadTasks();
     } catch (err) {
@@ -121,11 +135,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   downloadBtn.addEventListener("click", () => {
     if (!activeDeliverableText) return;
-    const blob = new Blob([activeDeliverableText], { type: "text/markdown" });
+    const isHtml = activeDeliverableType === "html";
+    const blob = new Blob([activeDeliverableText], { type: isHtml ? "text/html" : "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `deliverable-${Date.now()}.md`;
+    a.download = isHtml ? `landing-page-${Date.now()}.html` : `deliverable-${Date.now()}.md`;
     a.click();
     URL.revokeObjectURL(url);
   });

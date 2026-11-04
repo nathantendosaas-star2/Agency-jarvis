@@ -3,7 +3,7 @@ const { isSupabaseConfigured, getSupabaseClient } = require("../config/supabase"
 const { testSmtpConnection, getSmtpConfig } = require("../services/smtpService");
 const { testBufferConnection, getBufferConfig } = require("../services/bufferService");
 const { researchBusinessWithTavily } = require("../services/tavilyService");
-const { callOpenRouter } = require("../services/openrouterService");
+const { callAI, getAIProvider, getSelectedGeminiModel, loadSelectedGeminiModel, setSelectedGeminiModel, SUPPORTED_GEMINI_MODELS } = require("../services/openrouterService");
 
 function createSettingsRouter() {
   const router = express.Router();
@@ -11,6 +11,7 @@ function createSettingsRouter() {
   // GET /api/settings/status - Safe configuration health matrix
   router.get("/status", async (_req, res) => {
     res.set("Cache-Control", "no-store");
+    await loadSelectedGeminiModel();
     const smtpConfig = getSmtpConfig();
     const bufferConfig = getBufferConfig();
 
@@ -19,9 +20,15 @@ function createSettingsRouter() {
         configured: isSupabaseConfigured(),
         url: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\/\/[^/]{4})[^/]+/, "$1***") : null
       },
+      ai: {
+        provider: getAIProvider(),
+        configured: getAIProvider() === "gemini" ? Boolean(process.env.GEMINI_API_KEY) : Boolean(process.env.OPENROUTER_API_KEY),
+        model: getAIProvider() === "gemini" ? getSelectedGeminiModel() : (process.env.OPENROUTER_MODEL || "openrouter/free"),
+        availableModels: SUPPORTED_GEMINI_MODELS
+      },
       openrouter: {
         configured: Boolean(process.env.OPENROUTER_API_KEY),
-        model: process.env.OPENROUTER_MODEL || "google/gemma-4-26b-a4b-it:free"
+        model: process.env.OPENROUTER_MODEL || "openrouter/free"
       },
       tavily: {
         configured: Boolean(process.env.TAVILY_API_KEY)
@@ -41,6 +48,28 @@ function createSettingsRouter() {
     });
   });
 
+  // GET /api/settings/ai-model - Current runtime model selection
+  router.get("/ai-model", async (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    const model = await loadSelectedGeminiModel();
+    return res.json({ provider: getAIProvider(), model, availableModels: SUPPORTED_GEMINI_MODELS });
+  });
+
+  // PUT /api/settings/ai-model - Persist model selection without a server restart
+  router.put("/ai-model", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const { model } = req.body || {};
+    if (!SUPPORTED_GEMINI_MODELS.includes(model)) {
+      return res.status(400).json({ error: "Choose a supported Gemini model.", availableModels: SUPPORTED_GEMINI_MODELS });
+    }
+    try {
+      await setSelectedGeminiModel(model);
+      return res.json({ success: true, provider: "gemini", model });
+    } catch (err) {
+      return res.status(500).json({ error: `Could not save model selection: ${err.message}` });
+    }
+  });
+
   // POST /api/settings/test/supabase
   router.post("/test/supabase", async (_req, res) => {
     res.set("Cache-Control", "no-store");
@@ -56,20 +85,22 @@ function createSettingsRouter() {
     }
   });
 
-  // POST /api/settings/test/openrouter
-  router.post("/test/openrouter", async (_req, res) => {
+  // POST /api/settings/test/ai - Test the configured AI provider
+  router.post("/test/ai", async (_req, res) => {
     res.set("Cache-Control", "no-store");
-    if (!process.env.OPENROUTER_API_KEY) {
-      return res.status(200).json({ success: false, message: "OPENROUTER_API_KEY not configured." });
+    const provider = getAIProvider();
+    const configured = provider === "gemini" ? Boolean(process.env.GEMINI_API_KEY) : Boolean(process.env.OPENROUTER_API_KEY);
+    if (!configured) {
+      return res.status(200).json({ success: false, message: provider === "gemini" ? "GEMINI_API_KEY not configured." : "OPENROUTER_API_KEY not configured." });
     }
     try {
-      const reply = await callOpenRouter({
+      const reply = await callAI({
         messages: [{ role: "user", content: "Reply with the word PONG" }],
         maxTokens: 10
       });
-      return res.status(200).json({ success: true, message: `OpenRouter responded: "${reply.trim()}"` });
+      return res.status(200).json({ success: true, message: `${provider} responded: "${reply.trim()}"` });
     } catch (err) {
-      return res.status(200).json({ success: false, message: `OpenRouter test failed: ${err.message}` });
+      return res.status(200).json({ success: false, message: `${provider} test failed: ${err.message}` });
     }
   });
 

@@ -65,16 +65,25 @@
           </div>
         </div>
 
-        <!-- OpenRouter -->
+        <!-- AI Orchestrator -->
         <div class="service-card">
           <div class="service-header">
-            <h4>OpenRouter AI</h4>
-            <span id="badge-openrouter" class="status-badge status-new">Checking…</span>
+            <h4>Gemini AI Orchestrator</h4>
+            <span id="badge-ai" class="status-badge status-new">Checking…</span>
           </div>
-          <p class="service-desc">Powers lead qualification, email copy, briefs, and social content generation.</p>
+          <p class="service-desc">Select the model used by all Jarvis AI agents. Changes are saved to Supabase and take effect immediately.</p>
+          <div class="form-group" style="margin-top:16px">
+            <label for="ai-model-select">Active Gemini model</label>
+            <select id="ai-model-select">
+              <option value="gemini-3.8-flash">Gemini 3.8 Flash — Agentic / advanced</option>
+              <option value="gemini-3.6-flash">Gemini 3.6 Flash — Balanced</option>
+              <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — Lightweight</option>
+            </select>
+          </div>
           <div class="service-actions">
-            <button class="table-btn secondary" id="test-openrouter-btn">Test Ping</button>
-            <span id="res-openrouter" class="test-result-text"></span>
+            <button class="table-btn secondary" id="save-ai-model-btn" type="button">Save Model</button>
+            <button class="table-btn secondary" id="test-ai-btn" type="button">Test Selected Model</button>
+            <span id="res-ai" class="test-result-text" aria-live="polite"></span>
           </div>
         </div>
 

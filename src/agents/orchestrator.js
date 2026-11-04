@@ -1,18 +1,19 @@
-const { callOpenRouter, sanitizeJsonResponse } = require("../services/openrouterService");
+const { callAI, sanitizeJsonResponse } = require("../services/openrouterService");
 const { researchBusinessWithTavily } = require("../services/tavilyService");
 const {
   generateRedesignBrief,
   generateSmmaProposal,
   generateMarketingStrategy,
   generateCreativeBrief,
-  generateClientRecommendations
+  generateClientRecommendations,
+  generateLandingPage
 } = require("./creativeAgent");
 const { generateSocialContent } = require("./socialAgent");
 const { getClientById } = require("../services/clientsService");
 const { getLeadById } = require("../services/leadsService");
 
 const CLASSIFICATION_PROMPT = `You are Agency Jarvis's Task Orchestrator.
-Your role is to classify a natural-language task prompt from an agency owner into one of these 7 supported task types:
+Your role is to classify a natural-language task prompt from an agency owner into one of these 8 supported task types:
 
 1. "research" - Web research or deep intelligence on a business/competitor.
 2. "redesign_brief" - Website redesign or UX/CRO improvement brief.
@@ -20,17 +21,20 @@ Your role is to classify a natural-language task prompt from an agency owner int
 4. "marketing_strategy" - Full-funnel digital strategy, paid ad plan, or growth roadmap.
 5. "social_ideas" - Social media campaign ideas, posts, or content calendar.
 6. "creative_brief" - Creative ad concepts, video hooks, Reels/TikTok scripts.
-7. "client_recommendations" - Optimization and account growth recommendations for an existing client.
+7. "client_recommendations" - Optimization and account growth recommendations for an existing client.\n8. "landing_page" - Build a complete, standalone HTML landing page and save it as a real file.
 
 Respond strictly in valid JSON format:
 {
-  "task_type": "research | redesign_brief | smma_proposal | marketing_strategy | social_ideas | creative_brief | client_recommendations",
+  "task_type": "research | redesign_brief | smma_proposal | marketing_strategy | social_ideas | creative_brief | client_recommendations | landing_page",
   "reasoning": "Brief reason for classification",
   "target_name": "Extracted business or client name, if mentioned"
 }`;
 
 async function classifyTaskPrompt(promptText) {
-  const raw = await callOpenRouter({
+  if (/\b(landing page|one[- ]page website|single[- ]page website)\b/i.test(promptText) && /\b(build|create|design|make|generate|code|develop)\b/i.test(promptText)) {
+    return { task_type: "landing_page", reasoning: "The request explicitly asks to build a landing page." };
+  }
+  const raw = await callAI({
     messages: [
       { role: "system", content: CLASSIFICATION_PROMPT },
       { role: "user", content: `Classify this task request:\n"${promptText}"` }
@@ -56,6 +60,7 @@ async function executeTask({ taskType, prompt, clientId = null, leadId = null })
   }
 
   let resultMarkdown = "";
+  let artifact = null;
 
   switch (taskType) {
     case "research": {
@@ -88,13 +93,20 @@ async function executeTask({ taskType, prompt, clientId = null, leadId = null })
     case "client_recommendations":
       resultMarkdown = await generateClientRecommendations(contextInfo);
       break;
+    case "landing_page": {
+      const page = await generateLandingPage(prompt, contextInfo);
+      resultMarkdown = page.html;
+      artifact = { type: "html", path: page.path, note: page.note || "" };
+      break;
+    }
     default:
       throw new Error(`Unsupported task type: ${taskType}`);
   }
 
   return {
     taskType,
-    result: resultMarkdown
+    result: resultMarkdown,
+    artifact
   };
 }
 

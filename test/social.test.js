@@ -1,3 +1,6 @@
+// These tests mock OpenRouter responses; do not use the production Gemini default.
+process.env.AI_PROVIDER = "openrouter";
+
 const test = require("node:test");
 const assert = require("node:assert");
 const { generateSocialContent } = require("../src/agents/socialAgent");
