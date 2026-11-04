@@ -55,7 +55,7 @@
         <form id="workbench-form">
           <div class="form-group">
             <label>Describe the task or client deliverable in natural language *</label>
-            <textarea id="task-prompt" rows="3" required placeholder="e.g. Prepare a website redesign brief for a cosmetic dentist in Dallas, focusing on high-ticket implants and mobile booking."></textarea>
+            <textarea id="task-prompt" rows="3" required placeholder="e.g. Build a premium, mobile-first landing page for a Kampala dental clinic with appointment booking, service sections, and a WhatsApp CTA."></textarea>
           </div>
 
           <div class="form-grid">
@@ -70,6 +70,7 @@
                 <option value="social_ideas">Social Media Concepts</option>
                 <option value="creative_brief">Creative Ad Campaign Brief</option>
                 <option value="client_recommendations">Existing Client Growth Review</option>
+                <option value="landing_page">Build HTML Landing Page</option>
               </select>
             </div>
             <div class="form-group" style="align-self:end">
@@ -90,6 +91,7 @@
             <button id="download-deliverable-btn" class="table-btn secondary" type="button">Download Markdown</button>
           </div>
         </div>
+        <iframe id="deliverable-preview" title="Generated landing page preview" class="hidden" sandbox="allow-scripts allow-forms" style="width:100%;min-height:720px;border:1px solid var(--border-color, #263445);border-radius:12px;background:#fff"></iframe>
         <div id="deliverable-content" class="deliverable-viewer"></div>
       </div>
 
