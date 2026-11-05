@@ -310,6 +310,7 @@ async function processNextLeadJob() {
   if (isQueueProcessing) return;
   isQueueProcessing = true;
   let jobWasProcessed = false;
+  let heartbeat = null;
 
   try {
     const job = await claimNextJob();
@@ -320,6 +321,13 @@ async function processNextLeadJob() {
 
     jobWasProcessed = true;
     const { id: jobId, lead_id: leadId, stage } = job;
+    heartbeat = setInterval(() => {
+      getSupabaseClient().from("lead_pipeline_jobs")
+        .update({ locked_at: new Date().toISOString() })
+        .eq("id", jobId).eq("locked_by", WORKER_ID)
+        .then(({ error }) => { if (error) console.warn("Lead pipeline heartbeat failed:", error.message); });
+    }, 30000);
+    if (typeof heartbeat.unref === "function") heartbeat.unref();
     try {
       await processLeadAutonomousWorkflow(leadId, stage);
 
@@ -363,6 +371,7 @@ async function processNextLeadJob() {
       await new Promise((r) => setTimeout(r, 800));
     }
   } finally {
+    if (heartbeat) clearInterval(heartbeat);
     isQueueProcessing = false;
     // Continue draining the queue if a job was claimed
     if (jobWasProcessed) {
