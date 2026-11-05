@@ -9,6 +9,7 @@ const { createLeadsRouter } = require("./src/routes/leads");
 const { createClientsRouter } = require("./src/routes/clients");
 const { createOutreachRouter } = require("./src/routes/outreach");
 const { createWorkbenchRouter } = require("./src/routes/workbench");
+const { startWorkbenchWorker } = require("./src/services/workbenchService");
 const { createSocialRouter } = require("./src/routes/social");
 const { createApprovalsRouter } = require("./src/routes/approvals");
 const { createDashboardRouter } = require("./src/routes/dashboard");
@@ -118,6 +119,7 @@ if (require.main === module) {
     console.log(`Agency Jarvis is running on port ${PORT}`);
     try {
       await recoverPendingJobs();
+      startWorkbenchWorker();
     } catch (err) {
       console.warn("Could not recover pending jobs on startup:", err.message);
     }
