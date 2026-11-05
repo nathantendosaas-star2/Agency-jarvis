@@ -50,6 +50,24 @@
         <div class="welcome-orb" aria-hidden="true">J</div>
       </section>
 
+      <div class="workspace-card" style="margin-top:24px">
+        <div class="card-header"><h3>Quick Recipient Intake</h3></div>
+        <p class="muted">Add a recipient manually or upload a CSV. Google Sheets import remains available from the Leads page.</p>
+        <form id="manual-recipient-form" class="form-grid">
+          <div class="form-group"><label for="manual-business-name">Business / Company *</label><input id="manual-business-name" required placeholder="Business name"></div>
+          <div class="form-group"><label for="manual-contact-name">Contact name</label><input id="manual-contact-name" placeholder="Contact person"></div>
+          <div class="form-group"><label for="manual-recipient-email">Email address *</label><input id="manual-recipient-email" type="email" required placeholder="name@example.com"></div>
+          <div class="form-group" style="align-self:end"><button class="action-button primary-btn" type="submit" id="manual-recipient-submit">Add recipient</button></div>
+        </form>
+        <div class="form-group" style="margin-top:16px">
+          <label for="recipient-csv-file">Or upload recipients CSV</label>
+          <input id="recipient-csv-file" type="file" accept=".csv,text/csv">
+          <p class="lead-meta">Required columns: Business Name and Email. Optional: Contact Name, Website, Phone, Business Category, Location, Notes.</p>
+          <button class="table-btn secondary" type="button" id="import-recipient-csv-btn">Import CSV recipients</button>
+          <span id="recipient-import-status" class="test-result-text" aria-live="polite"></span>
+        </div>
+      </div>
+
       <!-- Outreach Generator Card -->
       <div class="workspace-card" style="margin-top:24px">
         <div class="card-header">

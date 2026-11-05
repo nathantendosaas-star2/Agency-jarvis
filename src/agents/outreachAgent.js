@@ -1,4 +1,4 @@
-const { callOpenRouter, sanitizeJsonResponse } = require("../services/openrouterService");
+const { callGemini, sanitizeJsonResponse } = require("../services/openrouterService");
 
 const OUTREACH_SYSTEM_PROMPT = `You are Agency Jarvis's Senior Cold Outreach Strategist for Social Media Marketing Agencies.
 Your job is to generate highly personalized, concise, relevant cold outreach emails for prospective clients based on business research.
@@ -52,11 +52,12 @@ ${JSON.stringify(research?.marketing_opportunities || [])}
 SUGGESTED SMMA SERVICES:
 ${JSON.stringify(research?.suggested_smma_services || [])}`;
 
-  const responseText = await callOpenRouter({
+  const responseText = await callGemini({
     messages: [
       { role: "system", content: OUTREACH_SYSTEM_PROMPT },
       { role: "user", content: prompt }
     ],
+    model: "gemini-3.6-flash",
     temperature: 0.3,
     responseFormat: { type: "json_object" }
   });
@@ -85,11 +86,12 @@ Body: ${originalEmail?.message_body || "N/A"}
 PROSPECT'S REPLY:
 "${replyContent}"`;
 
-  const responseText = await callOpenRouter({
+  const responseText = await callGemini({
     messages: [
       { role: "system", content: REPLY_CLASSIFICATION_PROMPT },
       { role: "user", content: prompt }
     ],
+    model: "gemini-3.6-flash",
     temperature: 0.2,
     responseFormat: { type: "json_object" }
   });
