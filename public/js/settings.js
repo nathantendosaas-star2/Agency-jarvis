@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const badgeSupabase = document.getElementById("badge-supabase");
   const badgeAI = document.getElementById("badge-ai");
   const badgeTavily = document.getElementById("badge-tavily");
-  const badgeSmtp = document.getElementById("badge-smtp");
+  const badgeBird = document.getElementById("badge-bird");
   const badgeBuffer = document.getElementById("badge-buffer");
   const badgeSheets = document.getElementById("badge-sheets");
 
@@ -13,13 +13,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const aiModelSelect = document.getElementById("ai-model-select");
   const saveAIModelButton = document.getElementById("save-ai-model-btn");
   const testTavilyBtn = document.getElementById("test-tavily-btn");
-  const testSmtpBtn = document.getElementById("test-smtp-btn");
+  const testBirdBtn = document.getElementById("test-bird-btn");
   const testBufferBtn = document.getElementById("test-buffer-btn");
 
   const resSupabase = document.getElementById("res-supabase");
   const resAI = document.getElementById("res-ai");
   const resTavily = document.getElementById("res-tavily");
-  const resSmtp = document.getElementById("res-smtp");
+  const resBird = document.getElementById("res-bird");
   const resBuffer = document.getElementById("res-buffer");
 
   async function loadConfigStatus() {
@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateBadge(badgeAI, data.ai?.configured);
       if (aiModelSelect && data.ai?.model) aiModelSelect.value = data.ai.model;
       updateBadge(badgeTavily, data.tavily?.configured);
-      updateBadge(badgeSmtp, data.smtp?.configured);
+      updateBadge(badgeBird, data.bird?.configured);
       updateBadge(badgeBuffer, data.buffer?.configured);
       updateBadge(badgeSheets, data.googleSheets?.configured);
     } catch {
@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindTest(testSupabaseBtn, resSupabase, "/api/settings/test/supabase");
   bindTest(testAIButton, resAI, "/api/settings/test/ai");
   bindTest(testTavilyBtn, resTavily, "/api/settings/test/tavily");
-  bindTest(testSmtpBtn, resSmtp, "/api/settings/test/smtp");
+  bindTest(testBirdBtn, resBird, "/api/settings/test/bird");
   bindTest(testBufferBtn, resBuffer, "/api/settings/test/buffer");
 
   loadConfigStatus();
