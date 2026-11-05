@@ -18,7 +18,7 @@ function createSettingsRouter() {
     return res.status(200).json({
       supabase: {
         configured: isSupabaseConfigured(),
-        url: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\\/\\/[^/]{4})[^/]+/, "$1***") : null
+        url: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\/\/[^/]{4})[^/]+/, "$1***") : null
       },
       ai: {
         provider: getAIProvider(),
