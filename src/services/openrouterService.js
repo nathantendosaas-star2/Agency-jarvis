@@ -362,6 +362,8 @@ Output your evaluation strictly in the required JSON format.`;
 
 module.exports = {
   DEFAULT_MODEL,
+  DEFAULT_OPENROUTER_MODEL,
+  getSelectedOpenRouterModel,
   SUPPORTED_GEMINI_MODELS,
   getAIProvider,
   getSelectedGeminiModel,
