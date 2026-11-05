@@ -1,5 +1,5 @@
-// These tests mock OpenRouter responses; do not use the production Gemini default.
-process.env.AI_PROVIDER = "openrouter";
+// Outreach now uses Gemini directly; keep tests isolated with a mocked Gemini API.
+process.env.AI_PROVIDER = "gemini";
 
 const test = require("node:test");
 const assert = require("node:assert");
@@ -9,12 +9,13 @@ const { setSupabaseClient } = require("../src/config/supabase");
 
 test("Outreach and Reply Classification Workflow", async (t) => {
   const originalFetch = global.fetch;
-  const originalKey = process.env.OPENROUTER_API_KEY;
-  process.env.OPENROUTER_API_KEY = "mock-openrouter-key";
+  const originalKey = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = "mock-gemini-key";
 
   t.after(() => {
     global.fetch = originalFetch;
-    process.env.OPENROUTER_API_KEY = originalKey;
+    if (originalKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = originalKey;
     setSupabaseClient(null);
   });
 
@@ -23,18 +24,12 @@ test("Outreach and Reply Classification Workflow", async (t) => {
       ok: true,
       async json() {
         return {
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({
                   subject_lines: ["Quick question regarding dental marketing", "Idea for Apex Dental", "Patient booking opportunity"],
                   selected_subject: "Idea for Apex Dental",
                   email_body: "Hi Dr. Vance, noticed your new clinic in Dallas. We help dental practices add 15-20 implant cases monthly.",
                   angle_used: "High ticket dental implants"
-                })
-              }
-            }
-          ]
+                }) }] } }]
         };
       }
     });
@@ -54,18 +49,12 @@ test("Outreach and Reply Classification Workflow", async (t) => {
       ok: true,
       async json() {
         return {
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify({
                   classification: "interested",
                   sentiment_summary: "Prospect wants a call next Tuesday.",
                   recommended_action: "Schedule 15 min discovery call",
                   suggested_follow_up: "Sounds great! Would 2pm Tuesday work for you?"
-                })
-              }
-            }
-          ]
+                }) }] } }]
         };
       }
     });
