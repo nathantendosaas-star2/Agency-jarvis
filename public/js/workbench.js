@@ -130,15 +130,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Execution failed");
 
-      if (data.result) {
-        displayDeliverable(data.task_type, data.result, data.metadata || {});
-      }
-      loadTasks();
+      activeTaskId = data.id;
+      runTaskBtn.textContent = "Task queued — running in background…";
+      taskPrompt.value = "";
+      await loadTasks();
     } catch (err) {
       alert(`Task execution error: ${err.message}`);
     } finally {
-      runTaskBtn.disabled = false;
-      runTaskBtn.textContent = "Execute Task with Jarvis";
+      if (!activeTaskId) {
+        runTaskBtn.disabled = false;
+        runTaskBtn.textContent = "Execute Task with Jarvis";
+      }
     }
   });
 
@@ -172,4 +174,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   loadTasks();
+  // UI polling only: execution continues in the backend if this page closes.
+  setInterval(loadTasks, 5000);
 });
