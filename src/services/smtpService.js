@@ -74,4 +74,13 @@ async function sendOutboundEmail({ to, subject, html, text }) {
   };
 }
 
-module.exports = { getSmtpConfig, testSmtpConnection, sendOutboundEmail };
+// Backward-compatible diagnostics only. Bird is never used to send messages.
+function getBirdConfig() {
+  return { isConfigured: false, fromEmail: null, fromName: null };
+}
+
+async function testBirdConnection() {
+  return { connected: false, message: "Bird is not fully configured because Bird sending is disabled. SMTP is the active email provider." };
+}
+
+module.exports = { getSmtpConfig, testSmtpConnection, sendOutboundEmail, getBirdConfig, testBirdConnection };
