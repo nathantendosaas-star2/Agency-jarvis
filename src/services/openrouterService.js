@@ -2,6 +2,7 @@ const { getSupabaseClient, isSupabaseConfigured } = require("../config/supabase"
 const { GEMINI_FUNCTION_DECLARATIONS, executeAgentTool, readWorkspaceFile } = require("./agentTools");
 
 const DEFAULT_MODEL = "gemini-3.5-flash-lite";
+const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
 let runtimeGeminiModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 let runtimeModelLoaded = false;
 const SUPPORTED_GEMINI_MODELS = Object.freeze([
@@ -252,11 +253,18 @@ async function callGeminiWithTools({ systemPrompt, userPrompt, model = null, max
   }
 }
 
+function getSelectedOpenRouterModel(model = null) {
+  const requestedModel = typeof model === "string" ? model.trim() : "";
+  if (requestedModel) return requestedModel;
+  const configuredModel = String(process.env.OPENROUTER_MODEL || "").trim();
+  return configuredModel || DEFAULT_OPENROUTER_MODEL;
+}
+
 async function callOpenRouter({ messages, temperature = 0.3, responseFormat = null, model = null, maxTokens = 2000, apiKey: passedApiKey = null }) {
   const apiKey = passedApiKey || process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured.");
 
-  const selectedModel = model || process.env.OPENROUTER_MODEL || "openrouter/free";
+  const selectedModel = getSelectedOpenRouterModel(model);
   const bodyPayload = { model: selectedModel, temperature, max_tokens: maxTokens, messages };
   if (responseFormat) bodyPayload.response_format = responseFormat;
 
