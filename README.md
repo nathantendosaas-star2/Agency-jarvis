@@ -11,7 +11,7 @@ Agency Jarvis is an AI-powered operating system for running a Social Media Marke
 - **Database**: Supabase PostgreSQL (`@supabase/supabase-js`).
 - **AI Gateway**: Google Gemini API by default, with OpenRouter available as an optional alternative.
 - **Web Intelligence**: Tavily API for evidence collection.
-- **Outbound Email**: Bird Email API via `@messagebird/sdk`, with explicit administrator approval gating and safe development simulation.
+- **Outbound Email**: Configurable SMTP via Nodemailer, with explicit administrator approval gating.
 - **Social Scheduling**: Buffer API.
 - **Lead Ingestion**: Google Forms → Google Sheets → Google Apps Script Web App → Jarvis API.
 - **Security**: Single administrator bcrypt password, secure HTTP-only cookies, SameSite cookies, login rate limiting, helmet security headers.
@@ -98,9 +98,9 @@ Agency Jarvis uses Supabase PostgreSQL. Migrations are organized sequentially in
 - Obtain an API key from [tavily.com](https://tavily.com).
 - Set `TAVILY_API_KEY`.
 
-### Bird Email
+### SMTP Email
 - Create an API key in Bird under **Developers → API keys**.
-- Set `BIRD_API_KEY`, `BIRD_FROM_EMAIL`, and optionally `BIRD_FROM_NAME`.
+- Set `SMTP_HOST`, `SMTP_FROM_EMAIL`, and optionally `SMTP_FROM_NAME`.
 - Verify the sending domain/address in Bird before sending real prospect emails.
 - Keep `BIRD_DEV_MODE=true` locally to simulate delivery. Set it to `false` only when you intend to send real emails.
 - The key is read only by the backend; never add it to browser JavaScript or commit it to Git.
@@ -144,10 +144,10 @@ Deploy Agency Jarvis as a standard Node Web Service:
    - `OPENROUTER_API_KEY`
    - `OPENROUTER_MODEL`
    - `TAVILY_API_KEY`
-   - `BIRD_API_KEY`
-   - `BIRD_FROM_EMAIL`
-   - `BIRD_FROM_NAME`
-   - `BIRD_DEV_MODE=false`
+   - `SMTP_HOST`
+   - `SMTP_FROM_EMAIL`
+   - `SMTP_FROM_NAME`
+   - `SMTP_PORT`\n   - `SMTP_SECURE`\n   - `SMTP_USER`\n   - `SMTP_PASS`
    - `BUFFER_ACCESS_TOKEN`
    - `GOOGLE_SHEETS_SCRIPT_URL`
    - `GOOGLE_SHEETS_API_SECRET`
