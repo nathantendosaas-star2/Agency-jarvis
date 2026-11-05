@@ -1,5 +1,25 @@
 "use strict";
 
+// Dynamic API Base URL configuration
+// In Netlify, window.API_BASE_URL can be set via a snippet or config, or fallback to current origin.
+const API_BASE_URL = (window.API_BASE_URL || localStorage.getItem("jarvis_api_base_url") || "").replace(/\/$/, "");
+
+async function apiFetch(endpoint, options = {}) {
+  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
+  const opts = {
+    ...options,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  };
+  return fetch(url, opts);
+}
+
+window.apiFetch = apiFetch;
+window.API_BASE_URL = API_BASE_URL;
+
 document.addEventListener("DOMContentLoaded", () => {
   const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
   document.querySelectorAll(".nav-link").forEach((link) => {
@@ -17,10 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
       logout.disabled = true;
       logout.textContent = "Signing out…";
       try {
-        await fetch("/api/auth/logout", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" }
+        await apiFetch("/api/auth/logout", {
+          method: "POST"
         });
       } finally {
         window.location.replace("/login");

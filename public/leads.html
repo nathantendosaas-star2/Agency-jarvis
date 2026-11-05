@@ -42,6 +42,9 @@
           <button id="add-lead-btn" class="action-button primary-btn" type="button">
             + Add Lead
           </button>
+          <button id="import-csv-btn" class="action-button primary-btn" type="button">
+            Import CSV Leads
+          </button>
           <button id="import-sheets-btn" class="action-button secondary-btn" type="button">
             Import Google Sheets
           </button>
@@ -49,13 +52,44 @@
         </div>
       </header>
 
-      <section class="welcome-panel compact">
-        <div>
-          <p class="eyebrow">RESEARCH & QUALIFICATION</p>
-          <h2>Prospect Pipeline Intelligence</h2>
-          <p class="muted">Live prospect acquisition from Google Forms/Sheets. Deep web evidence extraction with Tavily and qualification via OpenRouter.</p>
+      <!-- Automation Dashboard Status Section -->
+      <section class="workspace-card" id="pipeline-status-card" style="margin-bottom:24px">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <p class="eyebrow" style="margin:0">AUTONOMOUS PIPELINE</p>
+            <h3 style="margin:4px 0 0">Lead-to-Outreach Automation Status</h3>
+          </div>
+          <button id="refresh-pipeline-btn" class="table-btn secondary" type="button">↻ Refresh Status</button>
         </div>
-        <div class="welcome-orb" aria-hidden="true">J</div>
+        <p class="muted" style="margin-top:4px">
+          Autonomous end-to-end processing: CSV Upload → Duplicate Check → Web Research → AI Qualification → Gemini 3.5 Flash Lite Channel Outreach → Auto-Approval.
+        </p>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;margin:16px 0;">
+          <div style="background:#1b1527;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:var(--text)" id="metric-total">0</div>
+            <div class="lead-meta">Total Leads</div>
+          </div>
+          <div style="background:#1b1527;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:#93c5fd" id="metric-waiting">0</div>
+            <div class="lead-meta">In Queue / Working</div>
+          </div>
+          <div style="background:#1b1527;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:#86efac" id="metric-approved">0</div>
+            <div class="lead-meta">Drafts Approved</div>
+          </div>
+          <div style="background:#1b1527;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:#fca5a5" id="metric-failed">0</div>
+            <div class="lead-meta">Failed Stages</div>
+          </div>
+        </div>
+
+        <details style="margin-top:12px">
+          <summary style="cursor:pointer;font-size:12px;color:var(--muted)">View Recent Automation Activity Logs</summary>
+          <div id="pipeline-activity-logs" style="margin-top:8px;max-height:160px;overflow-y:auto;font-size:11px;background:#140e21;border:1px solid var(--border);border-radius:6px;padding:8px 12px;">
+            <p class="muted">No recent activity logs.</p>
+          </div>
+        </details>
       </section>
 
       <!-- Import Banner Notification -->
@@ -94,9 +128,9 @@
           <thead>
             <tr>
               <th>Business</th>
-              <th>Contact Details</th>
+              <th>Channel & Contact</th>
               <th>Score</th>
-              <th>Research</th>
+              <th>Processing Stage</th>
               <th>Pipeline Status</th>
               <th style="text-align: right;">Actions</th>
             </tr>
@@ -134,8 +168,24 @@
           <input type="text" id="new-lead-contact" placeholder="e.g. Sarah Jenkins">
         </div>
         <div class="form-group">
+          <label>Outreach Channel *</label>
+          <select id="new-lead-channel" required>
+            <option value="gmail" selected>Gmail (Cold Email)</option>
+            <option value="instagram">Instagram (Direct Message)</option>
+            <option value="whatsapp">WhatsApp (Direct Chat)</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Email</label>
           <input type="email" id="new-lead-email" placeholder="sarah@skylinesolar.example.com">
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" id="new-lead-phone" placeholder="+1 (512) 555-0199">
+        </div>
+        <div class="form-group">
+          <label>Instagram Handle / URL</label>
+          <input type="text" id="new-lead-instagram" placeholder="@skylinesolar or https://instagram.com/skylinesolar">
         </div>
         <div class="form-group">
           <label>Industry / Category</label>
@@ -152,6 +202,37 @@
         <div class="modal-actions">
           <button type="button" id="add-lead-cancel" class="table-btn secondary">Cancel</button>
           <button type="submit" class="action-button primary-btn">Create Lead</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Import CSV Modal -->
+  <div id="import-csv-modal" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h2>Import Leads from CSV</h2>
+        <button id="import-csv-modal-close" class="close-button">&times;</button>
+      </div>
+      <form id="import-csv-form">
+        <p class="muted" style="margin-top:0">Upload a CSV file of prospective leads. Agency Jarvis will automatically research, review, qualify, and generate approved outreach for every lead.</p>
+        <div class="form-group">
+          <label>Default Outreach Channel</label>
+          <select id="csv-channel-select" required>
+            <option value="gmail" selected>Gmail (Cold Email)</option>
+            <option value="instagram">Instagram (Direct Message)</option>
+            <option value="whatsapp">WhatsApp (Direct Chat)</option>
+          </select>
+          <p class="lead-meta">Can be overridden per-row if your CSV includes a "channel" column.</p>
+        </div>
+        <div class="form-group">
+          <label>CSV File *</label>
+          <input type="file" id="csv-file-input" accept=".csv,text/csv" required>
+        </div>
+        <div id="csv-import-status-text" class="import-status-text hidden"></div>
+        <div class="modal-actions">
+          <button type="button" id="import-csv-cancel-btn" class="table-btn secondary">Cancel</button>
+          <button type="submit" id="import-csv-submit-btn" class="action-button primary-btn">Upload & Start Automation</button>
         </div>
       </form>
     </div>

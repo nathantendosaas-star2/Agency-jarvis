@@ -2,6 +2,8 @@ const express = require("express");
 const { listLeads, getLeadById, createLead, updateLead } = require("../services/leadsService");
 const { ingestFromGoogleSheets } = require("../services/sheetsService");
 const { reviewAndQualifyLead } = require("../services/leadReviewService");
+const { importLeadsFromCsv, VALID_CHANNELS } = require("../services/csvImportService");
+const { enqueueLeadJob, retryFailedLead, getPipelineStatusSummary } = require("../services/leadPipelineService");
 const { getResearchByLeadId } = require("../services/researchService");
 const { isSupabaseConfigured } = require("../config/supabase");
 const { logActivity } = require("../services/activityService");
@@ -38,13 +40,41 @@ function createLeadsRouter() {
     }
   });
 
+  // GET /api/leads/pipeline/status - Get pipeline metrics and summary
+  router.get("/pipeline/status", async (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    try {
+      const summary = await getPipelineStatusSummary();
+      return res.status(200).json(summary);
+    } catch (err) {
+      console.error("Pipeline status error:", err.message);
+      return res.status(500).json({ error: "Failed to fetch pipeline status: " + err.message });
+    }
+  });
+
   // POST /api/leads - Create single lead
   router.post("/", async (req, res) => {
     res.set("Cache-Control", "no-store");
-    const { business_name, website, contact_name, email, phone, business_category, location, notes } = req.body || {};
+    const {
+      business_name,
+      website,
+      contact_name,
+      email,
+      phone,
+      instagram,
+      business_category,
+      location,
+      notes,
+      outreach_channel
+    } = req.body || {};
 
     if (!business_name || typeof business_name !== "string" || !business_name.trim()) {
       return res.status(400).json({ error: "Business name is required." });
+    }
+
+    const channel = (outreach_channel || "gmail").toLowerCase().trim();
+    if (channel && !VALID_CHANNELS.includes(channel)) {
+      return res.status(400).json({ error: `Invalid outreach_channel. Must be one of: ${VALID_CHANNELS.join(", ")}` });
     }
 
     try {
@@ -54,16 +84,50 @@ function createLeadsRouter() {
         contact_name,
         email,
         phone,
+        instagram,
         business_category,
         location,
         notes,
+        outreach_channel: channel || "gmail",
         source: "manual"
       });
-      await logActivity("lead_created", `Created lead: ${business_name}`, { entityType: "leads", entityId: lead.id });
+      await logActivity("lead_created", `Created lead: ${business_name} (${channel || "gmail"})`, { entityType: "leads", entityId: lead.id });
       return res.status(201).json(lead);
     } catch (err) {
       console.error("Failed to create lead:", err.message);
       return res.status(500).json({ error: "Failed to create lead: " + err.message });
+    }
+  });
+
+  // POST /api/leads/import/csv - Ingest leads via CSV and trigger autonomous pipeline
+  router.post("/import/csv", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const { csv, channel } = req.body || {};
+
+    if (!csv || typeof csv !== "string" || !csv.trim()) {
+      return res.status(400).json({ error: "CSV content is required." });
+    }
+
+    const defaultChannel = (channel || "gmail").toLowerCase().trim();
+    if (!VALID_CHANNELS.includes(defaultChannel)) {
+      return res.status(400).json({ error: `Invalid default channel. Must be one of: ${VALID_CHANNELS.join(", ")}` });
+    }
+
+    try {
+      const stats = await importLeadsFromCsv(csv, { defaultChannel });
+      await logActivity("leads_csv_imported", `CSV import: ${stats.imported} queued, ${stats.duplicatesSkipped} duplicates, ${stats.invalidRows} invalid`, {
+        metadata: {
+          imported: stats.imported,
+          duplicates: stats.duplicatesSkipped,
+          invalid: stats.invalidRows,
+          failed: stats.failed,
+          channel: defaultChannel
+        }
+      });
+      return res.status(200).json({ success: true, stats });
+    } catch (err) {
+      console.error("CSV import error:", err.message);
+      return res.status(400).json({ error: err.message });
     }
   });
 
@@ -102,15 +166,39 @@ function createLeadsRouter() {
     }
   });
 
+  // POST /api/leads/:id/retry - Retry failed pipeline stage
+  router.post("/:id/retry", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    try {
+      const job = await retryFailedLead(req.params.id);
+      await logActivity("lead_pipeline_retried", `Retried autonomous pipeline for lead ${req.params.id}`, {
+        entityType: "leads",
+        entityId: req.params.id
+      });
+      return res.status(200).json({ success: true, job });
+    } catch (err) {
+      console.error("Retry pipeline failed:", err.message);
+      return res.status(400).json({ error: err.message });
+    }
+  });
+
   // PATCH /api/leads/:id - Update lead details / status / decision
   router.patch("/:id", async (req, res) => {
     res.set("Cache-Control", "no-store");
+    const updates = req.body || {};
+    if (updates.outreach_channel) {
+      const channel = updates.outreach_channel.toLowerCase().trim();
+      if (!VALID_CHANNELS.includes(channel)) {
+        return res.status(400).json({ error: `Invalid outreach_channel. Must be one of: ${VALID_CHANNELS.join(", ")}` });
+      }
+      updates.outreach_channel = channel;
+    }
     try {
-      const updated = await updateLead(req.params.id, req.body || {});
+      const updated = await updateLead(req.params.id, updates);
       await logActivity("lead_updated", `Updated lead ${updated.business_name}: status ${updated.lead_status}`, {
         entityType: "leads",
         entityId: req.params.id,
-        metadata: { lead_status: updated.lead_status }
+        metadata: { lead_status: updated.lead_status, outreach_channel: updated.outreach_channel }
       });
       return res.status(200).json(updated);
     } catch (err) {

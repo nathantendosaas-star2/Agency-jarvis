@@ -43,9 +43,9 @@
 
       <section class="welcome-panel compact">
         <div>
-          <p class="eyebrow">COLD EMAIL STUDIO</p>
-          <h2>Personalized AI Outreach & Conversation Tracking</h2>
-          <p class="muted">Generate high-converting, research-backed cold emails. Administrator-enforced approval ensures no email sends without consent.</p>
+          <p class="eyebrow">MULTI-CHANNEL OUTREACH STUDIO</p>
+          <h2>Tailored AI Outreach & Prefilled Dispatch (Gmail, Instagram, WhatsApp)</h2>
+          <p class="muted">Review autonomously generated, approved outreach drafts or draft on-demand with Gemini 3.5 Flash Lite. Open prefilled messages directly in your app of choice.</p>
         </div>
         <div class="welcome-orb" aria-hidden="true">J</div>
       </section>
@@ -112,10 +112,20 @@
       </div>
 
       <!-- Outreach History & Active Conversations -->
-      <section class="section-heading">
+      <section class="section-heading" style="display:flex;justify-content:space-between;align-items:flex-end;">
         <div>
           <p class="eyebrow">COMMUNICATION PIPELINE</p>
           <h2>Outreach Records & Conversations</h2>
+        </div>
+        <div class="filter-group" id="channel-filter-group">
+          <label style="font-size:12px;color:var(--muted);margin-right:6px">Filter Channel:</label>
+          <select id="filter-outreach-channel" class="table-select">
+            <option value="">All Channels</option>
+            <option value="gmail">Gmail</option>
+            <option value="instagram">Instagram</option>
+            <option value="whatsapp">WhatsApp</option>
+          </select>
+          <button id="refresh-outreach-btn" class="icon-btn" title="Refresh outreach records">↻</button>
         </div>
       </section>
 
@@ -123,11 +133,11 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>Lead / Recipient</th>
-              <th>Subject</th>
-              <th>Status</th>
+              <th>Lead / Channel</th>
+              <th>Outreach Message / Subject</th>
+              <th>Approval & Model</th>
               <th>Follow-up / Reply</th>
-              <th style="text-align:right">Action</th>
+              <th style="text-align:right">Prefilled Action</th>
             </tr>
           </thead>
           <tbody id="outreach-tbody">
