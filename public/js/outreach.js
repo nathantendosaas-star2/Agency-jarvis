@@ -274,8 +274,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (rec.approval_status === "approved") {
           const sendBtn = document.createElement("button");
           sendBtn.className = "table-btn primary";
-          sendBtn.textContent = "Send via Bird";
-          sendBtn.addEventListener("click", () => sendEmail(rec.id));
+          sendBtn.textContent = "Open in Gmail";
+          sendBtn.addEventListener("click", () => openGmailCompose(rec));
           actionGroup.appendChild(sendBtn);
         } else if (rec.approval_status === "pending" || rec.approval_status === "executing") {
           const pending = document.createElement("span");
@@ -326,20 +326,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  async function sendEmail(outreachId) {
-    if (!confirm("Send this administrator-approved email through Bird?")) return;
-    try {
-      const res = await fetch(`/api/outreach/${outreachId}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Sending email failed");
-      alert(data.sendResult?.simulated ? "Simulated email sent successfully (Bird development mode)!" : "Email dispatched successfully through Bird!");
-      loadOutreachRecords();
-    } catch (err) {
-      alert(`Send failed: ${err.message}`);
+  function openGmailCompose(record) {
+    if (!record || record.approval_status !== "approved") {
+      alert("Administrator approval is required before opening this email.");
+      return;
     }
+    const recipient = String(record.recipient || "").trim();
+    const subject = String(record.subject || "").trim();
+    const body = String(record.message_body || record.body || "").trim();
+    if (!recipient || !subject || !body) {
+      alert("This approved email is missing its recipient, subject, or message body.");
+      return;
+    }
+    if (!confirm("Open this approved email in Gmail? It will only be pre-filled. You must press Send in Gmail.")) return;
+    const params = new URLSearchParams({ view: "cm", fs: "1", to: recipient, su: subject, body });
+    const link = document.createElement("a");
+    link.href = "https://mail.google.com/mail/?" + params.toString();
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.click();
+    alert("Gmail compose has been requested. Review the message and press Send in Gmail. Jarvis will not mark it as sent automatically.");
   }
 
   function openReplyModal(id) {
