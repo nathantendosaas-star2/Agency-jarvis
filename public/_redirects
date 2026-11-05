@@ -1,3 +1,8 @@
-# Netlify redirect rules for routing API calls to the Render backend service
-/api/*  :API_BASE_URL/api/:splat  200
-/*      /index.html               200
+# Proxy API requests to the Render backend. Keep this rule before the frontend fallback.
+/api/*  https://agency-jarvis.onrender.com/api/:splat  200
+
+# Serve the standalone administrator login page.
+/login  /login.html  200
+
+# Frontend fallback.
+/*  /index.html  200
