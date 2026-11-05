@@ -34,9 +34,10 @@ function createSettingsRouter() {
         configured: Boolean(process.env.TAVILY_API_KEY)
       },
       smtp: {
-        configured: birdConfig.isConfigured,
-        fromEmail: birdConfig.fromEmail || null,
-        fromName: birdConfig.fromName || null
+        configured: smtpConfig.isConfigured,
+        host: smtpConfig.host || null,
+        fromEmail: smtpConfig.fromEmail || null,
+        
       },
       buffer: {
         configured: bufferConfig.isConfigured
@@ -118,9 +119,9 @@ function createSettingsRouter() {
   });
 
   // POST /api/settings/test/smtp
-  router.post("/test/bird", async (_req, res) => {
+  router.post("/test/smtp", async (_req, res) => {
     res.set("Cache-Control", "no-store");
-    const testResult = await testBirdConnection();
+    const testResult = await testSmtpConnection();
     return res.status(200).json({ success: testResult.connected, message: testResult.message });
   });
 
