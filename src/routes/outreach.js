@@ -28,10 +28,10 @@ function createOutreachRouter() {
 
   router.post("/draft", async (req, res) => {
     res.set("Cache-Control", "no-store");
-    const { lead_id } = req.body || {};
+    const { lead_id, email_brief } = req.body || {};
     if (!lead_id) return res.status(400).json({ error: "lead_id is required." });
     try {
-      const draft = await draftOutreachForLead(lead_id);
+      const draft = await draftOutreachForLead(lead_id, { emailBrief: email_brief });
       return res.status(201).json(draft);
     } catch (err) {
       console.error("Draft outreach error:", err.message);

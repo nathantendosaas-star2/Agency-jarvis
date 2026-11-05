@@ -30,13 +30,14 @@ async function getOutreachById(id) {
   return data;
 }
 
-async function draftOutreachForLead(leadId) {
+async function draftOutreachForLead(leadId, options = {}) {
   const lead = await getLeadById(leadId);
   if (!lead) throw new Error("Lead not found.");
   if (!lead.email) throw new Error("Lead does not have an email address specified.");
 
   const research = await getResearchByLeadId(leadId);
-  const draft = await generateOutreachDraft(lead, research);
+  const emailBrief = typeof options.emailBrief === "string" ? options.emailBrief.trim() : "";
+  const draft = await generateOutreachDraft(lead, research, emailBrief);
 
   const recordPayload = {
     lead_id: leadId,
@@ -44,6 +45,7 @@ async function draftOutreachForLead(leadId) {
     recipient: lead.email,
     subject: draft.subject,
     message_body: draft.body,
+    email_brief: emailBrief || null,
     status: "draft"
   };
 
