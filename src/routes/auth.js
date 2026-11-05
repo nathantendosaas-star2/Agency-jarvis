@@ -19,9 +19,16 @@ function requireSameOrigin(req, res, next) {
 
   try {
     const parsed = new URL(origin);
-    const expectedHost = req.get("host");
-    const expectedOrigin = `${req.protocol}://${expectedHost}`;
-    if (parsed.origin !== expectedOrigin) {
+    // Render terminates HTTPS at its proxy, so validate against the public
+    // forwarded host/protocol rather than an internal HTTP connection.
+    const forwardedHost = req.get("x-forwarded-host");
+    const forwardedProto = req.get("x-forwarded-proto");
+    const expectedHost = (forwardedHost || req.get("host") || "").split(",")[0].trim();
+    const expectedProtocol = (forwardedProto || req.protocol || "").split(",")[0].trim();
+    if (
+      parsed.host !== expectedHost ||
+      parsed.protocol !== `${expectedProtocol.replace(/:$/, "")}:`
+    ) {
       return res.status(403).json({ error: "Origin check failed." });
     }
     return next();
