@@ -152,7 +152,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/api/outreach/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_id: leadId })
+        body: JSON.stringify({
+          lead_id: leadId,
+          email_brief: document.getElementById("email-brief")?.value.trim() || ""
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Draft generation failed");
