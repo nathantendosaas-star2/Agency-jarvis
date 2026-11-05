@@ -8,6 +8,40 @@ document.addEventListener("DOMContentLoaded", async () => {
   const approvalsContainer = document.getElementById("approvals-container");
   const activityContainer = document.getElementById("activity-container");
 
+  const chatForm = document.getElementById("overview-chat-form");
+  const chatPrompt = document.getElementById("overview-chat-prompt");
+  const chatSubmit = document.getElementById("overview-chat-submit");
+  const chatResponse = document.getElementById("overview-chat-response");
+
+  if (chatForm) {
+    chatForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const prompt = chatPrompt.value.trim();
+      if (!prompt) return;
+      chatSubmit.disabled = true;
+      chatSubmit.textContent = "Jarvis is working…";
+      chatResponse.classList.remove("hidden");
+      chatResponse.textContent = "Processing your request…";
+      try {
+        const response = await fetch("/api/workbench", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Jarvis could not complete the request.");
+        chatResponse.textContent = data.result || "Task completed. Open Workbench to view the saved result.";
+        chatPrompt.value = "";
+      } catch (error) {
+        chatResponse.textContent = "Error: " + error.message;
+      } finally {
+        chatSubmit.disabled = false;
+        chatSubmit.textContent = "Send to Jarvis";
+      }
+    });
+  }
+
+
   async function loadDashboard() {
     try {
       const res = await fetch("/api/dashboard");
