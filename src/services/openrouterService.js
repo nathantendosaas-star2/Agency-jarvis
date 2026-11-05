@@ -1,13 +1,13 @@
 const { getSupabaseClient, isSupabaseConfigured } = require("../config/supabase");
 const { GEMINI_FUNCTION_DECLARATIONS, executeAgentTool, readWorkspaceFile } = require("./agentTools");
 
-const DEFAULT_MODEL = "gemini-3.6-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 let runtimeGeminiModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 let runtimeModelLoaded = false;
 const SUPPORTED_GEMINI_MODELS = Object.freeze([
+  "gemini-3.5-flash-lite",
   "gemini-3.8-flash",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash-lite"
+  "gemini-3.6-flash"
 ]);
 
 const REVIEW_SYSTEM_PROMPT = `You are Agency Jarvis's Senior SMMA Lead Qualification and Research Specialist.

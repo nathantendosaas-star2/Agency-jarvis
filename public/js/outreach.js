@@ -9,6 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const bodyTextarea = document.getElementById("draft-body");
   const requestApprovalBtn = document.getElementById("request-approval-btn");
   const outreachTbody = document.getElementById("outreach-tbody");
+  const filterOutreachChannel = document.getElementById("filter-outreach-channel");
+  const refreshOutreachBtn = document.getElementById("refresh-outreach-btn");
 
   const replyModal = document.getElementById("reply-modal");
   const replyCloseBtn = document.getElementById("reply-close-btn");
@@ -24,9 +26,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const importStatus = document.getElementById("recipient-import-status");
 
   async function createRecipientLead(row) {
-    const response = await fetch("/api/leads", {
+    const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+    const response = await fetchFn("/api/leads", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(row)
     });
     const data = await response.json();
@@ -43,7 +45,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const lead = await createRecipientLead({
           business_name: document.getElementById("manual-business-name").value.trim(),
           contact_name: document.getElementById("manual-contact-name").value.trim(),
-          email: document.getElementById("manual-recipient-email").value.trim()
+          email: document.getElementById("manual-recipient-email").value.trim(),
+          outreach_channel: "gmail"
         });
         await loadLeadsForOutreach();
         leadSelect.value = lead.id;
@@ -59,21 +62,30 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function parseRecipientsCsv(text) {
-    const lines = text.replace(/\\r/g, "").split("\\n").filter(line => line.trim());
+    const lines = text.replace(/\r/g, "").split("\n").filter((line) => line.trim());
     if (lines.length < 2) throw new Error("CSV must contain a header and at least one row.");
-    const split = line => {
-      const cells = []; let value = "", quoted = false;
+    const split = (line) => {
+      const cells = [];
+      let value = "", quoted = false;
       for (let i = 0; i < line.length; i += 1) {
         const ch = line[i];
-        if (ch === '"' && quoted && line[i + 1] === '"') { value += '"'; i += 1; }
-        else if (ch === '"') quoted = !quoted;
-        else if (ch === "," && !quoted) { cells.push(value.trim()); value = ""; }
-        else value += ch;
+        if (ch === '"' && quoted && line[i + 1] === '"') {
+          value += '"';
+          i += 1;
+        } else if (ch === '"') {
+          quoted = !quoted;
+        } else if (ch === "," && !quoted) {
+          cells.push(value.trim());
+          value = "";
+        } else {
+          value += ch;
+        }
       }
-      cells.push(value.trim()); return cells;
+      cells.push(value.trim());
+      return cells;
     };
-    const headers = split(lines.shift()).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
-    return lines.map(line => {
+    const headers = split(lines.shift()).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    return lines.map((line) => {
       const cells = split(line), row = {};
       headers.forEach((header, index) => { row[header] = cells[index] || ""; });
       return {
@@ -82,11 +94,13 @@ document.addEventListener("DOMContentLoaded", () => {
         contact_name: row.contactname || row.name || "",
         website: row.website || "",
         phone: row.phone || "",
+        instagram: row.instagram || row.instagramhandle || row.handle || "",
         business_category: row.businesscategory || row.category || "",
         location: row.location || "",
-        notes: row.notes || ""
+        notes: row.notes || "",
+        outreach_channel: row.outreachchannel || row.channel || "gmail"
       };
-    }).filter(row => row.business_name && row.email);
+    }).filter((row) => row.business_name);
   }
 
   if (csvImportButton) {
@@ -97,11 +111,15 @@ document.addEventListener("DOMContentLoaded", () => {
       importStatus.textContent = "Importing…";
       try {
         const rows = parseRecipientsCsv(await file.text());
-        if (!rows.length) throw new Error("No valid rows. Each row needs Business Name and Email.");
+        if (!rows.length) throw new Error("No valid rows found in CSV.");
         let imported = 0, failed = 0;
         for (const row of rows) {
-          try { await createRecipientLead(row); imported += 1; }
-          catch { failed += 1; }
+          try {
+            await createRecipientLead(row);
+            imported += 1;
+          } catch {
+            failed += 1;
+          }
         }
         await loadLeadsForOutreach();
         importStatus.textContent = imported + " imported; " + failed + " failed.";
@@ -113,23 +131,24 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-
   async function init() {
     await Promise.all([loadLeadsForOutreach(), loadOutreachRecords()]);
   }
 
   async function loadLeadsForOutreach() {
     try {
-      const res = await fetch("/api/leads?limit=100");
+      const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+      const res = await fetchFn("/api/leads?limit=100");
       if (!res.ok) return;
       const data = await res.json();
-      const leads = (data.leads || []).filter((l) => l.email && l.email.trim());
+      const leads = (data.leads || []).filter((l) => l.email || l.phone || l.instagram);
 
-      leadSelect.innerHTML = `<option value="">-- Choose a lead with email --</option>`;
+      leadSelect.innerHTML = `<option value="">-- Choose a prospect lead --</option>`;
       leads.forEach((l) => {
         const opt = document.createElement("option");
         opt.value = l.id;
-        opt.textContent = `${l.business_name || l.company_name} (${l.email}) - Score: ${l.qualification_score || "N/A"}`;
+        const channelLabel = (l.outreach_channel || "gmail").toUpperCase();
+        opt.textContent = `${l.business_name || l.company_name} [${channelLabel}] - Score: ${l.qualification_score || "N/A"}`;
         leadSelect.appendChild(opt);
       });
 
@@ -146,12 +165,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!leadId) return;
 
     generateDraftBtn.disabled = true;
-    generateDraftBtn.textContent = "Drafting with Gemini…";
+    generateDraftBtn.textContent = "Drafting with Gemini 3.5 Flash Lite…";
 
     try {
-      const res = await fetch("/api/outreach/draft", {
+      const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+      const res = await fetchFn("/api/outreach/draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lead_id: leadId,
           email_brief: document.getElementById("email-brief")?.value.trim() || ""
@@ -161,20 +180,22 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!res.ok) throw new Error(data.error || "Draft generation failed");
 
       currentDraftId = data.id;
-      subjectInput.value = data.subject;
-      bodyTextarea.value = data.message_body;
+      subjectInput.value = data.subject || "";
+      bodyTextarea.value = data.message_body || data.body || "";
 
       subjectChipsContainer.innerHTML = "";
-      (data.alternative_subjects || []).forEach((subj) => {
-        const chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "subject-chip";
-        chip.textContent = subj;
-        chip.addEventListener("click", () => {
-          subjectInput.value = subj;
+      if (Array.isArray(data.alternative_subjects) && data.alternative_subjects.length) {
+        data.alternative_subjects.forEach((subj) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "subject-chip";
+          chip.textContent = subj;
+          chip.addEventListener("click", () => {
+            subjectInput.value = subj;
+          });
+          subjectChipsContainer.appendChild(chip);
         });
-        subjectChipsContainer.appendChild(chip);
-      });
+      }
 
       draftWorkspace.classList.remove("hidden");
       loadOutreachRecords();
@@ -182,25 +203,25 @@ document.addEventListener("DOMContentLoaded", () => {
       alert(`Error generating draft: ${err.message}`);
     } finally {
       generateDraftBtn.disabled = false;
-      generateDraftBtn.textContent = "Generate AI Email Draft";
+      generateDraftBtn.textContent = "Generate AI Outreach Draft";
     }
   });
 
   requestApprovalBtn.addEventListener("click", async () => {
     if (!currentDraftId) return;
     requestApprovalBtn.disabled = true;
-    requestApprovalBtn.textContent = "Requesting Approval…";
+    requestApprovalBtn.textContent = "Submitting…";
 
     try {
-      const res = await fetch(`/api/outreach/${currentDraftId}/request-approval`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
+      const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+      const res = await fetchFn(`/api/outreach/${currentDraftId}/request-approval`, {
+        method: "POST"
       });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Failed to request approval");
       }
-      alert("Outreach submitted for administrator approval! Check Dashboard or below.");
+      alert("Outreach submitted for administrator approval! Check below or Dashboard.");
       loadOutreachRecords();
     } catch (err) {
       alert(`Approval submission error: ${err.message}`);
@@ -212,7 +233,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadOutreachRecords() {
     try {
-      const res = await fetch("/api/outreach?limit=50");
+      const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+      const res = await fetchFn("/api/outreach?limit=100");
       if (!res.ok) throw new Error("Failed to load outreach records");
       const data = await res.json();
       renderOutreachRecords(data.records || []);
@@ -222,37 +244,87 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderOutreachRecords(records) {
-    if (records.length === 0) {
-      outreachTbody.innerHTML = `<tr><td colspan="5" class="state-message">No outreach drafted or sent yet.</td></tr>`;
+    const selectedChannel = filterOutreachChannel ? filterOutreachChannel.value : "";
+    const filtered = selectedChannel
+      ? records.filter((r) => (r.channel || "gmail").toLowerCase() === selectedChannel.toLowerCase())
+      : records;
+
+    if (filtered.length === 0) {
+      outreachTbody.innerHTML = `<tr><td colspan="5" class="state-message">No outreach records matching criteria.</td></tr>`;
       return;
     }
 
     outreachTbody.innerHTML = "";
-    records.forEach((rec) => {
+    filtered.forEach((rec) => {
       const tr = document.createElement("tr");
+      const channel = (rec.channel || "gmail").toLowerCase();
 
-      // Recipient info
+      // Lead & Channel
       const tdRec = document.createElement("td");
-      tdRec.innerHTML = `<strong>${escapeHtml(rec.leads?.business_name || "Lead")}</strong><div class="lead-meta">${escapeHtml(rec.recipient)}</div>`;
+      const chBadge = document.createElement("span");
+      chBadge.className = "status-badge";
+      chBadge.style.marginRight = "6px";
+      chBadge.style.fontSize = "10px";
+      if (channel === "instagram") {
+        chBadge.style.background = "#3b1732";
+        chBadge.style.color = "#f472b6";
+        chBadge.textContent = "INSTAGRAM";
+      } else if (channel === "whatsapp") {
+        chBadge.style.background = "#142d20";
+        chBadge.style.color = "#4ade80";
+        chBadge.textContent = "WHATSAPP";
+      } else {
+        chBadge.style.background = "#1e293b";
+        chBadge.style.color = "#93c5fd";
+        chBadge.textContent = "GMAIL";
+      }
+
+      tdRec.appendChild(chBadge);
+      const nameSpan = document.createElement("strong");
+      nameSpan.textContent = rec.leads?.business_name || "Lead";
+      tdRec.appendChild(nameSpan);
+
+      const contactMeta = document.createElement("div");
+      contactMeta.className = "lead-meta";
+      contactMeta.textContent = rec.recipient || "No recipient address";
+      tdRec.appendChild(contactMeta);
       tr.appendChild(tdRec);
 
-      // Subject
+      // Subject / Message
       const tdSub = document.createElement("td");
-      tdSub.innerHTML = `<div>${escapeHtml(rec.subject || "No subject")}</div><div class="lead-meta">${escapeHtml((rec.message_body || "").slice(0, 75))}…</div>`;
+      if (rec.subject) {
+        const subjDiv = document.createElement("div");
+        subjDiv.style.fontWeight = "600";
+        subjDiv.textContent = rec.subject;
+        tdSub.appendChild(subjDiv);
+      }
+      const bodyDiv = document.createElement("div");
+      bodyDiv.className = "lead-meta";
+      bodyDiv.textContent = (rec.message_body || rec.body || "").slice(0, 95) + "…";
+      tdSub.appendChild(bodyDiv);
       tr.appendChild(tdSub);
 
-      // Status
+      // Approval & Model Metadata
       const tdStat = document.createElement("td");
+      const isApproved = rec.approval_status === "approved" || rec.status === "approved" || rec.is_auto_approved;
+
       const badge = document.createElement("span");
-      badge.className = `status-badge status-${rec.status}`;
-      badge.textContent = rec.status.toUpperCase();
+      badge.className = `status-badge ${isApproved ? "status-approved" : "status-" + rec.status}`;
+      badge.textContent = isApproved ? "APPROVED" : (rec.status || "DRAFT").toUpperCase();
       tdStat.appendChild(badge);
-      if (rec.sent_at) {
-        const sentTime = document.createElement("div");
-        sentTime.className = "lead-meta";
-        sentTime.textContent = new Date(rec.sent_at).toLocaleDateString();
-        tdStat.appendChild(sentTime);
+
+      if (rec.is_auto_approved) {
+        const autoLabel = document.createElement("div");
+        autoLabel.className = "lead-meta";
+        autoLabel.style.color = "#a7f3d0";
+        autoLabel.textContent = "⚡ Auto-approved";
+        tdStat.appendChild(autoLabel);
       }
+
+      const modelMeta = document.createElement("div");
+      modelMeta.className = "lead-meta";
+      modelMeta.textContent = rec.model_used || "gemini-3.5-flash-lite";
+      tdStat.appendChild(modelMeta);
       tr.appendChild(tdStat);
 
       // Follow-up / Reply
@@ -260,7 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (rec.reply_sentiment) {
         tdReply.innerHTML = `<span class="status-badge" style="background:#241d33;color:#d8b4fe">${escapeHtml(rec.reply_sentiment.toUpperCase())}</span><div class="lead-meta">${escapeHtml(rec.follow_up_recommendation || "")}</div>`;
       } else {
-        tdReply.textContent = "No reply yet";
+        tdReply.textContent = "—";
       }
       tr.appendChild(tdReply);
 
@@ -269,39 +341,47 @@ document.addEventListener("DOMContentLoaded", () => {
       tdAct.style.textAlign = "right";
       const actionGroup = document.createElement("div");
       actionGroup.className = "row-actions";
+      actionGroup.style.justifyContent = "flex-end";
 
-      if (rec.status === "draft") {
-        if (rec.approval_status === "approved") {
-          const sendBtn = document.createElement("button");
-          sendBtn.className = "table-btn primary";
-          sendBtn.textContent = "Open in Gmail";
-          sendBtn.addEventListener("click", () => openGmailCompose(rec));
-          actionGroup.appendChild(sendBtn);
-        } else if (rec.approval_status === "pending" || rec.approval_status === "executing") {
-          const pending = document.createElement("span");
-          pending.className = "lead-meta";
-          pending.textContent = "Awaiting administrator approval";
-          actionGroup.appendChild(pending);
-        } else if (rec.approval_status === "rejected") {
-          const rejected = document.createElement("span");
-          rejected.className = "lead-meta";
-          rejected.textContent = "Approval rejected — submit a revised draft";
-          actionGroup.appendChild(rejected);
-        } else {
-          const requestBtn = document.createElement("button");
-          requestBtn.className = "table-btn secondary";
-          requestBtn.textContent = "Request Approval";
-          requestBtn.addEventListener("click", () => requestApprovalForRecord(rec.id));
-          actionGroup.appendChild(requestBtn);
-        }
-      }
+      // One-click Copy Message Button (for all channels)
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "table-btn secondary";
+      copyBtn.textContent = "Copy Message";
+      copyBtn.addEventListener("click", () => {
+        const textToCopy = rec.message_body || rec.body || "";
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          const original = copyBtn.textContent;
+          copyBtn.textContent = "✓ Copied!";
+          setTimeout(() => { copyBtn.textContent = original; }, 1800);
+        }).catch(() => {
+          alert("Could not copy message automatically.");
+        });
+      });
+      actionGroup.appendChild(copyBtn);
 
-      if (rec.status === "sent") {
-        const replyBtn = document.createElement("button");
-        replyBtn.className = "table-btn secondary";
-        replyBtn.textContent = "Record Reply";
-        replyBtn.addEventListener("click", () => openReplyModal(rec.id));
-        actionGroup.appendChild(replyBtn);
+      // Channel-specific Prefilled Action
+      if (channel === "gmail") {
+        const gmailBtn = document.createElement("button");
+        gmailBtn.type = "button";
+        gmailBtn.className = "table-btn primary";
+        gmailBtn.textContent = "Open in Gmail";
+        gmailBtn.addEventListener("click", () => openGmailCompose(rec));
+        actionGroup.appendChild(gmailBtn);
+      } else if (channel === "instagram") {
+        const igBtn = document.createElement("button");
+        igBtn.type = "button";
+        igBtn.className = "table-btn primary";
+        igBtn.textContent = "Open Instagram";
+        igBtn.addEventListener("click", () => openInstagramProfile(rec));
+        actionGroup.appendChild(igBtn);
+      } else if (channel === "whatsapp") {
+        const waBtn = document.createElement("button");
+        waBtn.type = "button";
+        waBtn.className = "table-btn primary";
+        waBtn.textContent = "Open WhatsApp";
+        waBtn.addEventListener("click", () => openWhatsAppChat(rec));
+        actionGroup.appendChild(waBtn);
       }
 
       tdAct.appendChild(actionGroup);
@@ -310,74 +390,64 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  async function requestApprovalForRecord(outreachId) {
-    if (!confirm("Submit this email to the Dashboard for administrator approval? It will not send yet.")) return;
-    try {
-      const res = await fetch(`/api/outreach/${outreachId}/request-approval`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to request approval");
-      alert("Approval requested. Open the Dashboard and approve the email before sending.");
-      await loadOutreachRecords();
-    } catch (err) {
-      alert("Approval request failed: " + err.message);
-    }
-  }
-
   function openGmailCompose(record) {
-    if (!record || record.approval_status !== "approved") {
-      alert("Administrator approval is required before opening this email.");
-      return;
-    }
     const recipient = String(record.recipient || "").trim();
     const subject = String(record.subject || "").trim();
     const body = String(record.message_body || record.body || "").trim();
-    if (!recipient || !subject || !body) {
-      alert("This approved email is missing its recipient, subject, or message body.");
+    if (!recipient || !body) {
+      alert("This outreach record is missing a recipient or message body.");
       return;
     }
-    if (!confirm("Open this approved email in Gmail? It will only be pre-filled. You must press Send in Gmail.")) return;
     const params = new URLSearchParams({ view: "cm", fs: "1", to: recipient, su: subject, body });
     const link = document.createElement("a");
     link.href = "https://mail.google.com/mail/?" + params.toString();
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.click();
-    alert("Gmail compose has been requested. Review the message and press Send in Gmail. Jarvis will not mark it as sent automatically.");
   }
 
-  function openReplyModal(id) {
-    replyOutreachId.value = id;
-    replyText.value = "";
-    replyModal.classList.remove("hidden");
+  function openInstagramProfile(record) {
+    let handleOrUrl = String(record.recipient || record.leads?.instagram || "").trim();
+    if (!handleOrUrl || handleOrUrl === "Instagram Lead") {
+      alert("No Instagram handle or profile URL recorded for this lead. Use 'Copy Message' to send the DM manually.");
+      return;
+    }
+
+    let url = handleOrUrl;
+    if (!url.startsWith("http")) {
+      const cleanHandle = handleOrUrl.replace(/^@/, "");
+      url = `https://instagram.com/${cleanHandle}`;
+    }
+
+    // Copy message to clipboard first for convenience
+    const body = record.message_body || record.body || "";
+    if (body) {
+      navigator.clipboard.writeText(body).catch(() => {});
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  if (replyCloseBtn) replyCloseBtn.addEventListener("click", () => replyModal.classList.add("hidden"));
-  if (replyCancelBtn) replyCancelBtn.addEventListener("click", () => replyModal.classList.add("hidden"));
-  if (replyForm) {
-    replyForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const id = replyOutreachId.value;
-      const content = replyText.value.trim();
-      if (!content) return;
+  function openWhatsAppChat(record) {
+    const rawPhone = String(record.recipient || record.leads?.phone || "").trim();
+    const cleanPhone = rawPhone.replace(/[^0-9]/g, "");
+    if (!cleanPhone) {
+      alert("No valid phone number recorded for this WhatsApp lead.");
+      return;
+    }
 
-      try {
-        const res = await fetch(`/api/outreach/${id}/reply`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reply_content: content })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to classify reply");
-        alert(`Reply Classified as: ${data.analysis.classification.toUpperCase()}\n\nRecommended Action:\n${data.analysis.recommended_action}`);
-        replyModal.classList.add("hidden");
-        loadOutreachRecords();
-      } catch (err) {
-        alert(err.message);
-      }
-    });
+    const body = String(record.message_body || record.body || "").trim();
+    const encodedText = encodeURIComponent(body);
+    const waUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
+
+    window.open(waUrl, "_blank", "noopener,noreferrer");
+  }
+
+  if (filterOutreachChannel) {
+    filterOutreachChannel.addEventListener("change", loadOutreachRecords);
+  }
+  if (refreshOutreachBtn) {
+    refreshOutreachBtn.addEventListener("click", loadOutreachRecords);
   }
 
   function escapeHtml(text) {

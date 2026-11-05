@@ -13,6 +13,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const addLeadCancel = document.getElementById("add-lead-cancel");
   const addLeadForm = document.getElementById("add-lead-form");
 
+  const importCsvBtn = document.getElementById("import-csv-btn");
+  const importCsvModal = document.getElementById("import-csv-modal");
+  const importCsvModalClose = document.getElementById("import-csv-modal-close");
+  const importCsvCancelBtn = document.getElementById("import-csv-cancel-btn");
+  const importCsvForm = document.getElementById("import-csv-form");
+  const importCsvSubmitBtn = document.getElementById("import-csv-submit-btn");
+  const csvImportStatusText = document.getElementById("csv-import-status-text");
+
   const importBtn = document.getElementById("import-sheets-btn");
   const importModal = document.getElementById("import-modal");
   const importModalClose = document.getElementById("import-modal-close");
@@ -27,7 +35,40 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalTitle = document.getElementById("modal-title");
   const modalContent = document.getElementById("modal-content");
 
+  const refreshPipelineBtn = document.getElementById("refresh-pipeline-btn");
+  const metricTotal = document.getElementById("metric-total");
+  const metricWaiting = document.getElementById("metric-waiting");
+  const metricApproved = document.getElementById("metric-approved");
+  const metricFailed = document.getElementById("metric-failed");
+  const pipelineActivityLogs = document.getElementById("pipeline-activity-logs");
+
   let debounceTimer = null;
+  let pollInterval = null;
+
+  async function loadPipelineMetrics() {
+    try {
+      const res = await (window.apiFetch ? window.apiFetch("/api/leads/pipeline/status") : fetch("/api/leads/pipeline/status"));
+      if (!res.ok) return;
+      const data = await res.json();
+      if (metricTotal) metricTotal.textContent = data.total ?? 0;
+      if (metricWaiting) metricWaiting.textContent = data.waiting ?? 0;
+      if (metricApproved) metricApproved.textContent = data.approved_drafts ?? 0;
+      if (metricFailed) metricFailed.textContent = data.failed ?? 0;
+
+      if (pipelineActivityLogs && Array.isArray(data.recent_activity)) {
+        if (data.recent_activity.length === 0) {
+          pipelineActivityLogs.innerHTML = "<p class='muted'>No recent activity logs.</p>";
+        } else {
+          pipelineActivityLogs.innerHTML = data.recent_activity.map((item) => {
+            const time = new Date(item.created_at).toLocaleTimeString();
+            return `<div style="margin-bottom:4px"><strong>${time}</strong> [${escapeHtml(item.event_type)}] ${escapeHtml(item.description)}</div>`;
+          }).join("");
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load pipeline metrics:", err.message);
+    }
+  }
 
   async function loadLeads() {
     leadsTbody.innerHTML = `<tr><td colspan="6" class="state-message">Loading leads…</td></tr>`;
@@ -38,13 +79,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (researchFilter && researchFilter.value) params.append("research_status", researchFilter.value);
 
     try {
-      const res = await fetch(`/api/leads?${params.toString()}`);
+      const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+      const res = await fetchFn(`/api/leads?${params.toString()}`);
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to load leads from database.");
       }
       const data = await res.json();
       renderLeads(data.leads || []);
+      loadPipelineMetrics();
     } catch (err) {
       leadsTbody.innerHTML = `<tr><td colspan="6" class="state-message error-message">${escapeHtml(err.message)}</td></tr>`;
     }
@@ -84,9 +127,56 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       tr.appendChild(tdBiz);
 
-      // Contact Details
+      // Channel & Contact Details
       const tdContact = document.createElement("td");
-      tdContact.innerHTML = `<div>${escapeHtml(lead.contact_name || "—")}</div><div class="lead-meta">${escapeHtml(lead.email || "")}</div><div class="lead-meta">${escapeHtml(lead.phone || "")}</div>`;
+      const channelBadge = document.createElement("span");
+      channelBadge.className = "status-badge";
+      channelBadge.style.background = "#2b1c40";
+      channelBadge.style.color = "#c084fc";
+      channelBadge.style.marginRight = "6px";
+      channelBadge.textContent = (lead.outreach_channel || "gmail").toUpperCase();
+
+      const channelSelector = document.createElement("select");
+      channelSelector.className = "table-select";
+      channelSelector.style.fontSize = "11px";
+      channelSelector.style.padding = "2px 6px";
+      channelSelector.style.marginLeft = "4px";
+      ["gmail", "instagram", "whatsapp"].forEach((ch) => {
+        const opt = document.createElement("option");
+        opt.value = ch;
+        opt.textContent = ch.toUpperCase();
+        if ((lead.outreach_channel || "gmail") === ch) opt.selected = true;
+        channelSelector.appendChild(opt);
+      });
+
+      channelSelector.addEventListener("change", async () => {
+        const newChannel = channelSelector.value;
+        if (confirm(`Change outreach channel to ${newChannel.toUpperCase()}? You will be able to generate a new draft for this channel.`)) {
+          try {
+            const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+            await fetchFn(`/api/leads/${lead.id}`, {
+              method: "PATCH",
+              body: JSON.stringify({ outreach_channel: newChannel })
+            });
+            loadLeads();
+          } catch (err) {
+            alert("Failed to update channel: " + err.message);
+          }
+        } else {
+          channelSelector.value = lead.outreach_channel || "gmail";
+        }
+      });
+
+      const contactBox = document.createElement("div");
+      contactBox.style.marginTop = "4px";
+      contactBox.innerHTML = `<div>${escapeHtml(lead.contact_name || "—")}</div>` +
+        (lead.email ? `<div class="lead-meta">✉ ${escapeHtml(lead.email)}</div>` : "") +
+        (lead.phone ? `<div class="lead-meta">☎ ${escapeHtml(lead.phone)}</div>` : "") +
+        (lead.instagram ? `<div class="lead-meta">📸 ${escapeHtml(lead.instagram)}</div>` : "");
+
+      tdContact.appendChild(channelBadge);
+      tdContact.appendChild(channelSelector);
+      tdContact.appendChild(contactBox);
       tr.appendChild(tdContact);
 
       // Score
@@ -105,13 +195,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       tr.appendChild(tdScore);
 
-      // Research Status
-      const tdResearch = document.createElement("td");
-      const researchBadge = document.createElement("span");
-      researchBadge.className = `status-badge research-${lead.research_status || "pending"}`;
-      researchBadge.textContent = (lead.research_status || "pending").replace("_", " ");
-      tdResearch.appendChild(researchBadge);
-      tr.appendChild(tdResearch);
+      // Processing Stage
+      const tdStage = document.createElement("td");
+      const stageText = (lead.processing_stage || "imported").replace(/_/g, " ");
+      const stageBadge = document.createElement("span");
+      stageBadge.className = `status-badge research-${lead.processing_stage || "pending"}`;
+      stageBadge.textContent = stageText.toUpperCase();
+      tdStage.appendChild(stageBadge);
+
+      if (lead.processing_error) {
+        const errDiv = document.createElement("div");
+        errDiv.className = "lead-meta";
+        errDiv.style.color = "#f87171";
+        errDiv.textContent = `Error: ${lead.processing_error.slice(0, 60)}…`;
+        tdStage.appendChild(errDiv);
+      }
+      tr.appendChild(tdStage);
 
       // Status dropdown for administrator changes
       const tdStatus = document.createElement("td");
@@ -127,9 +226,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       statusSelect.addEventListener("change", async () => {
         try {
-          await fetch(`/api/leads/${lead.id}`, {
+          const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+          await fetchFn(`/api/leads/${lead.id}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ lead_status: statusSelect.value })
           });
           loadLeads();
@@ -151,38 +250,35 @@ document.addEventListener("DOMContentLoaded", () => {
         const viewBtn = document.createElement("button");
         viewBtn.type = "button";
         viewBtn.className = "table-btn secondary";
-        viewBtn.textContent = "View Review";
+        viewBtn.textContent = "Review";
         viewBtn.addEventListener("click", () => showResearchModal(lead.id, lead.business_name));
         actionGroup.appendChild(viewBtn);
       }
 
-      const reviewBtn = document.createElement("button");
-      reviewBtn.type = "button";
-      reviewBtn.className = "table-btn primary";
-      reviewBtn.textContent = lead.research_status === "completed" ? "Re-qualify" : "AI Review";
-      if (lead.research_status === "in_progress") {
-        reviewBtn.disabled = true;
-        reviewBtn.textContent = "Researching…";
+      // Retry button if failed
+      if (lead.processing_stage === "failed" || lead.research_status === "failed") {
+        const retryBtn = document.createElement("button");
+        retryBtn.type = "button";
+        retryBtn.className = "table-btn primary";
+        retryBtn.textContent = "Retry";
+        retryBtn.addEventListener("click", async () => {
+          retryBtn.disabled = true;
+          retryBtn.textContent = "Retrying…";
+          try {
+            const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+            const res = await fetchFn(`/api/leads/${lead.id}/retry`, { method: "POST" });
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.error || "Retry failed");
+            }
+            loadLeads();
+          } catch (e) {
+            alert("Retry failed: " + e.message);
+            loadLeads();
+          }
+        });
+        actionGroup.appendChild(retryBtn);
       }
-
-      reviewBtn.addEventListener("click", async () => {
-        reviewBtn.disabled = true;
-        reviewBtn.textContent = "Researching…";
-        try {
-          const res = await fetch(`/api/leads/${lead.id}/review`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-          });
-          const result = await res.json();
-          if (!res.ok) throw new Error(result.error || "Review failed");
-          showResearchModal(lead.id, lead.business_name);
-          loadLeads();
-        } catch (err) {
-          alert(`Research error: ${err.message}`);
-          loadLeads();
-        }
-      });
-      actionGroup.appendChild(reviewBtn);
 
       tdAction.appendChild(actionGroup);
       tr.appendChild(tdAction);
@@ -197,7 +293,8 @@ document.addEventListener("DOMContentLoaded", () => {
     researchModal.classList.remove("hidden");
 
     try {
-      const res = await fetch(`/api/leads/${leadId}/research`);
+      const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+      const res = await fetchFn(`/api/leads/${leadId}/research`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Could not load research details.");
@@ -231,13 +328,12 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
 
-      <!-- Administrator Review Decision Buttons -->
       <div class="review-decision-bar">
         <span>Admin Decision:</span>
         <button class="table-btn primary" id="decide-qualify-btn">Qualify Lead</button>
         <button class="table-btn secondary" id="decide-review-btn">Flag for Review</button>
         <button class="table-btn secondary" style="color:#f87171" id="decide-disqualify-btn">Disqualify</button>
-        <a href="/outreach.html" class="button-link" style="margin:0 0 0 auto;padding:6px 12px;font-size:11px">Prepare Outreach →</a>
+        <a href="/outreach.html" class="button-link" style="margin:0 0 0 auto;padding:6px 12px;font-size:11px">Open Outreach →</a>
       </div>
 
       <div class="review-section">
@@ -290,9 +386,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function updateLeadStatus(leadId, status) {
     try {
-      await fetch(`/api/leads/${leadId}`, {
+      const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+      await fetchFn(`/api/leads/${leadId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lead_status: status })
       });
       researchModal.classList.add("hidden");
@@ -322,6 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (statusFilter) statusFilter.addEventListener("change", loadLeads);
   if (researchFilter) researchFilter.addEventListener("change", loadLeads);
   if (refreshBtn) refreshBtn.addEventListener("click", loadLeads);
+  if (refreshPipelineBtn) refreshPipelineBtn.addEventListener("click", () => { loadLeads(); loadPipelineMetrics(); });
 
   // Add Lead Modal Listeners
   if (addLeadBtn) addLeadBtn.addEventListener("click", () => addLeadModal.classList.remove("hidden"));
@@ -334,15 +431,18 @@ document.addEventListener("DOMContentLoaded", () => {
         business_name: document.getElementById("new-lead-name").value,
         website: document.getElementById("new-lead-website").value,
         contact_name: document.getElementById("new-lead-contact").value,
+        outreach_channel: document.getElementById("new-lead-channel").value,
         email: document.getElementById("new-lead-email").value,
+        phone: document.getElementById("new-lead-phone").value,
+        instagram: document.getElementById("new-lead-instagram").value,
         business_category: document.getElementById("new-lead-category").value,
         location: document.getElementById("new-lead-location").value,
         notes: document.getElementById("new-lead-notes").value
       };
       try {
-        const res = await fetch("/api/leads", {
+        const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+        const res = await fetchFn("/api/leads", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
         if (!res.ok) {
@@ -354,6 +454,67 @@ document.addEventListener("DOMContentLoaded", () => {
         loadLeads();
       } catch (err) {
         alert(err.message);
+      }
+    });
+  }
+
+  // CSV Import Modal Listeners
+  if (importCsvBtn) {
+    importCsvBtn.addEventListener("click", () => {
+      csvImportStatusText.textContent = "";
+      csvImportStatusText.className = "import-status-text hidden";
+      importCsvModal.classList.remove("hidden");
+    });
+  }
+  if (importCsvModalClose) importCsvModalClose.addEventListener("click", () => importCsvModal.classList.add("hidden"));
+  if (importCsvCancelBtn) importCsvCancelBtn.addEventListener("click", () => importCsvModal.classList.add("hidden"));
+  if (importCsvForm) {
+    importCsvForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById("csv-file-input");
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        alert("Please select a CSV file.");
+        return;
+      }
+
+      importCsvSubmitBtn.disabled = true;
+      importCsvSubmitBtn.textContent = "Uploading & Enqueuing…";
+      csvImportStatusText.textContent = "Reading CSV file…";
+      csvImportStatusText.className = "import-status-text";
+      csvImportStatusText.classList.remove("hidden");
+
+      try {
+        const text = await file.text();
+        const channel = document.getElementById("csv-channel-select").value;
+
+        const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+        const res = await fetchFn("/api/leads/import/csv", {
+          method: "POST",
+          body: JSON.stringify({ csv: text, channel })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Import failed");
+
+        const stats = data.stats;
+        csvImportStatusText.textContent = `Success: Uploaded ${stats.totalRows} rows. Enqueued ${stats.imported} leads into autonomous pipeline (${stats.duplicatesSkipped} duplicates skipped, ${stats.invalidRows} invalid).`;
+        csvImportStatusText.classList.add("status-success");
+
+        importBanner.className = "banner banner-success";
+        importBanner.textContent = `CSV Import active: ${stats.imported} new leads queued for autonomous research, review & outreach generation.`;
+        importBanner.classList.remove("hidden");
+
+        setTimeout(() => {
+          importCsvModal.classList.add("hidden");
+          importCsvForm.reset();
+          loadLeads();
+        }, 1500);
+      } catch (err) {
+        csvImportStatusText.textContent = `CSV import error: ${err.message}`;
+        csvImportStatusText.classList.add("status-error");
+      } finally {
+        importCsvSubmitBtn.disabled = false;
+        importCsvSubmitBtn.textContent = "Upload & Start Automation";
       }
     });
   }
@@ -381,9 +542,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const apiSecret = document.getElementById("import-api-secret").value.trim();
 
       try {
-        const res = await fetch("/api/leads/import/sheets", {
+        const fetchFn = window.apiFetch ? window.apiFetch : fetch;
+        const res = await fetchFn("/api/leads/import/sheets", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ scriptUrl: scriptUrl || undefined, apiSecret: apiSecret || undefined })
         });
         const data = await res.json();
@@ -414,4 +575,14 @@ document.addEventListener("DOMContentLoaded", () => {
   if (researchModalClose) researchModalClose.addEventListener("click", () => researchModal.classList.add("hidden"));
 
   loadLeads();
+  loadPipelineMetrics();
+
+  // Periodic polling for automation status updates while on leads page
+  pollInterval = setInterval(() => {
+    loadPipelineMetrics();
+  }, 5000);
+
+  window.addEventListener("beforeunload", () => {
+    if (pollInterval) clearInterval(pollInterval);
+  });
 });

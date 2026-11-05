@@ -31,16 +31,42 @@ if (IS_PRODUCTION) app.set("trust proxy", 1);
 
 app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS configuration for Render backend & Netlify frontend
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.NETLIFY_URL
+].filter(Boolean).map(url => url.trim().replace(/\/$/, ""));
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    const isAllowed = allowedOrigins.length === 0 || allowedOrigins.includes(origin) || !IS_PRODUCTION;
+    if (isAllowed) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    }
+  }
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ extended: false, limit: "50kb" }));
 
+// Support cross-site session cookies if FRONTEND_URL is hosted on a different domain than backend
+const isCrossSite = Boolean(IS_PRODUCTION && process.env.FRONTEND_URL);
 app.use(cookieSession({
   name: "agency_jarvis_session",
   keys: [process.env.SESSION_SECRET],
   maxAge: 8 * 60 * 60 * 1000,
   httpOnly: true,
   secure: IS_PRODUCTION,
-  sameSite: "strict",
+  sameSite: isCrossSite ? "none" : "lax",
   path: "/"
 }));
 
@@ -85,9 +111,16 @@ app.use(express.static(publicDirectory, {
 app.use("/api", (_req, res) => res.status(404).json({ error: "API endpoint not found." }));
 app.use((_req, res) => res.status(404).sendFile(path.join(publicDirectory, "404.html")));
 
+const { recoverPendingJobs } = require("./src/services/leadPipelineService");
+
 if (require.main === module) {
-  app.listen(PORT, "0.0.0.0", () => {
+  app.listen(PORT, "0.0.0.0", async () => {
     console.log(`Agency Jarvis is running on port ${PORT}`);
+    try {
+      await recoverPendingJobs();
+    } catch (err) {
+      console.warn("Could not recover pending jobs on startup:", err.message);
+    }
   });
 }
 

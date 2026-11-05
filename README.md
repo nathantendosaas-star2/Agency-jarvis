@@ -62,11 +62,15 @@ Agency Jarvis uses Supabase PostgreSQL. Migrations are organized sequentially in
 1. `001_initial_schema.sql` — Baseline schema (`leads`, `lead_research`, `outreach_records`, `social_content`, `app_settings`).
 2. `002_lead_reviewer_compatibility.sql` — Compatibility enhancements for lead qualification fields.
 3. `003_mvp_extensions.sql` — Adds client/workbench/approval/activity tables, audit columns, one-use approval execution state, and RLS/direct-access restrictions.
+4. `004_agentic_workbench.sql` — Adds landing page generator support.
+5. `004_outreach_email_brief.sql` — Outreach campaign brief column.
+6. `005_outreach_message_body_compatibility.sql` — Message body compatibility mirroring.
+7. `006_autonomous_lead_pipeline.sql` — Multi-channel outreach (`gmail`, `instagram`, `whatsapp`), processing stages, auto-approval metadata, and `lead_pipeline_jobs` table for autonomous background processing.
 
 ### Applying Migrations
 - Log into your Supabase Dashboard → SQL Editor.
-- If running on a new instance, execute `001_initial_schema.sql`, `002_lead_reviewer_compatibility.sql`, and `003_mvp_extensions.sql`.
-- Migration 003 adds tables/columns and security settings, but also replaces lead-status checks and adds an approval-state check. Review it before applying. This code change does not apply it to your live database.
+- If running on a new instance, execute migrations in sequential order up through `006_autonomous_lead_pipeline.sql`.
+- Migration 006 adds `outreach_channel`, `instagram`, `processing_stage`, and `processing_error` to `leads`, updates constraints on `outreach_records`, and creates `lead_pipeline_jobs` with RLS restricted to `service_role`.
 
 ---
 
@@ -87,8 +91,8 @@ Agency Jarvis uses Supabase PostgreSQL. Migrations are organized sequentially in
 
 ### Google Gemini API (default)
 - Create an API key in [Google AI Studio](https://aistudio.google.com/apikey).
-- Set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `GEMINI_MODEL`.
-- Supported model IDs: `gemini-3.8-flash`, `gemini-3.6-flash`, and `gemini-3.5-flash-lite`. Change `GEMINI_MODEL` and restart the server to switch models.
+- Set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `GEMINI_MODEL=gemini-3.5-flash-lite`.
+- Supported model IDs: `gemini-3.5-flash-lite` (default for outreach and autonomous pipeline), `gemini-3.8-flash`, and `gemini-3.6-flash`. Change `GEMINI_MODEL` and restart the server to switch models.
 
 ### OpenRouter API (optional alternative)
 - Create an account at [openrouter.ai](https://openrouter.ai) and generate an API key.
@@ -123,9 +127,9 @@ The test suite utilizes Node's built-in test runner (`node:test`) and mocks exte
 
 ---
 
-## 7. Render Web Service Deployment
+## 7. Render Web Service Deployment (Backend)
 
-Deploy Agency Jarvis as a standard Node Web Service:
+Deploy Agency Jarvis as a standard Node Web Service on Render:
 
 1. Create a **New Web Service** on Render connected to this repository.
 2. Configure settings:
@@ -137,17 +141,54 @@ Deploy Agency Jarvis as a standard Node Web Service:
 3. Configure Environment Variables in Render Dashboard:
    - `NODE_ENV=production`
    - `PORT=10000`
-   - `ADMIN_PASSWORD_HASH`
-   - `SESSION_SECRET`
+   - `ADMIN_PASSWORD_HASH` (bcrypt hash from `npm run hash-password`)
+   - `SESSION_SECRET` (at least 32 characters)
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
-   - `OPENROUTER_API_KEY`
-   - `OPENROUTER_MODEL`
+   - `AI_PROVIDER=gemini`
+   - `GEMINI_API_KEY`
+   - `GEMINI_MODEL=gemini-3.5-flash-lite`
+   - `FRONTEND_URL` (your deployed Netlify URL, e.g. `https://agency-jarvis.netlify.app`)
    - `TAVILY_API_KEY`
-   - `SMTP_HOST`
-   - `SMTP_FROM_EMAIL`
-   - `SMTP_FROM_NAME`
-   - `SMTP_PORT`\n   - `SMTP_SECURE`\n   - `SMTP_USER`\n   - `SMTP_PASS`
    - `BUFFER_ACCESS_TOKEN`
-   - `GOOGLE_SHEETS_SCRIPT_URL`
-   - `GOOGLE_SHEETS_API_SECRET`
+   - `GOOGLE_SHEETS_SCRIPT_URL` (optional)
+   - `GOOGLE_SHEETS_API_SECRET` (optional)
+
+---
+
+## 8. Netlify Deployment (Frontend)
+
+Deploy Agency Jarvis frontend to Netlify:
+
+1. Connect the GitHub repository in Netlify.
+2. Configure build settings:
+   - **Base directory**: `public`
+   - **Publish directory**: `public`
+   - **Build command**: (leave empty or `echo "Frontend static deploy"`)
+3. Configure Environment Variables in Netlify:
+   - `API_BASE_URL`: The URL of your deployed Render backend (e.g. `https://agency-jarvis.onrender.com`).
+4. Proxy Configuration:
+   - `public/_redirects` contains `/api/* :API_BASE_URL/api/:splat 200` to transparently route frontend API calls to Render without cross-origin cookie restrictions.
+
+---
+
+## 9. Testing & Troubleshooting Autonomous Pipeline
+
+### Testing CSV Lead Import & Automation
+1. Navigate to the **Leads** page.
+2. Click **Import CSV Leads**.
+3. Choose a default outreach channel (`Gmail`, `Instagram`, or `WhatsApp`).
+4. Select a CSV file containing at least `Business Name` and `Email` or `Phone` or `Instagram`.
+5. Click **Upload & Start Automation**.
+6. The leads will be saved, duplicate checked, and enqueued.
+7. The autonomous worker automatically proceeds through:
+   - Web intelligence research via Tavily
+   - SMMA qualification via OpenRouter/Gemini
+   - Outreach draft generation via Gemini 3.5 Flash Lite tailored to the channel
+   - Automatic draft approval
+8. Navigate to **Outreach** to view the auto-approved messages and click **Open in Gmail**, **Open Instagram**, or **Open WhatsApp** to launch the prefilled message.
+
+### Troubleshooting Failed Jobs
+- Inspect the **Autonomous Pipeline** dashboard card on the Leads page to view failed count and recent logs.
+- Click the **Retry** button in the Leads table on any failed row to re-enqueue from the failed stage without losing existing research data.
+- After a server restart, pending or interrupted jobs are automatically detected and recovered by `recoverPendingJobs()`.
