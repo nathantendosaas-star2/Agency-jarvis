@@ -18,6 +18,101 @@ document.addEventListener("DOMContentLoaded", () => {
   const replyText = document.getElementById("reply-text");
 
   let currentDraftId = null;
+  const manualRecipientForm = document.getElementById("manual-recipient-form");
+  const csvFileInput = document.getElementById("recipient-csv-file");
+  const csvImportButton = document.getElementById("import-recipient-csv-btn");
+  const importStatus = document.getElementById("recipient-import-status");
+
+  async function createRecipientLead(row) {
+    const response = await fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(row)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not add recipient");
+    return data;
+  }
+
+  if (manualRecipientForm) {
+    manualRecipientForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = document.getElementById("manual-recipient-submit");
+      button.disabled = true;
+      try {
+        const lead = await createRecipientLead({
+          business_name: document.getElementById("manual-business-name").value.trim(),
+          contact_name: document.getElementById("manual-contact-name").value.trim(),
+          email: document.getElementById("manual-recipient-email").value.trim()
+        });
+        await loadLeadsForOutreach();
+        leadSelect.value = lead.id;
+        generateDraftBtn.disabled = false;
+        manualRecipientForm.reset();
+        alert("Recipient added. Generate the AI email draft when ready.");
+      } catch (error) {
+        alert("Could not add recipient: " + error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+
+  function parseRecipientsCsv(text) {
+    const lines = text.replace(/\\r/g, "").split("\\n").filter(line => line.trim());
+    if (lines.length < 2) throw new Error("CSV must contain a header and at least one row.");
+    const split = line => {
+      const cells = []; let value = "", quoted = false;
+      for (let i = 0; i < line.length; i += 1) {
+        const ch = line[i];
+        if (ch === '"' && quoted && line[i + 1] === '"') { value += '"'; i += 1; }
+        else if (ch === '"') quoted = !quoted;
+        else if (ch === "," && !quoted) { cells.push(value.trim()); value = ""; }
+        else value += ch;
+      }
+      cells.push(value.trim()); return cells;
+    };
+    const headers = split(lines.shift()).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    return lines.map(line => {
+      const cells = split(line), row = {};
+      headers.forEach((header, index) => { row[header] = cells[index] || ""; });
+      return {
+        business_name: row.businessname || row.company || row.companyname || row.business || "",
+        email: row.email || row.emailaddress || "",
+        contact_name: row.contactname || row.name || "",
+        website: row.website || "",
+        phone: row.phone || "",
+        business_category: row.businesscategory || row.category || "",
+        location: row.location || "",
+        notes: row.notes || ""
+      };
+    }).filter(row => row.business_name && row.email);
+  }
+
+  if (csvImportButton) {
+    csvImportButton.addEventListener("click", async () => {
+      const file = csvFileInput && csvFileInput.files[0];
+      if (!file) { alert("Choose a CSV file first."); return; }
+      csvImportButton.disabled = true;
+      importStatus.textContent = "Importing…";
+      try {
+        const rows = parseRecipientsCsv(await file.text());
+        if (!rows.length) throw new Error("No valid rows. Each row needs Business Name and Email.");
+        let imported = 0, failed = 0;
+        for (const row of rows) {
+          try { await createRecipientLead(row); imported += 1; }
+          catch { failed += 1; }
+        }
+        await loadLeadsForOutreach();
+        importStatus.textContent = imported + " imported; " + failed + " failed.";
+      } catch (error) {
+        importStatus.textContent = error.message;
+      } finally {
+        csvImportButton.disabled = false;
+      }
+    });
+  }
+
 
   async function init() {
     await Promise.all([loadLeadsForOutreach(), loadOutreachRecords()]);
@@ -51,7 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!leadId) return;
 
     generateDraftBtn.disabled = true;
-    generateDraftBtn.textContent = "Drafting with OpenRouter…";
+    generateDraftBtn.textContent = "Drafting with Gemini…";
 
     try {
       const res = await fetch("/api/outreach/draft", {
