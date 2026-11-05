@@ -119,6 +119,10 @@ if (require.main === module) {
     console.log(`Agency Jarvis is running on port ${PORT}`);
     try {
       await recoverPendingJobs();
+      const leadRecoveryTimer = setInterval(() => {
+        recoverPendingJobs().catch((err) => console.warn("Lead queue recovery check failed:", err.message));
+      }, 30000);
+      if (typeof leadRecoveryTimer.unref === "function") leadRecoveryTimer.unref();
       startWorkbenchWorker();
     } catch (err) {
       console.warn("Could not recover pending jobs on startup:", err.message);
