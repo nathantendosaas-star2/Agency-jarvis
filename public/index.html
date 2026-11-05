@@ -50,6 +50,22 @@
         <div class="welcome-orb">J</div>
       </section>
 
+      <section class="workspace-card" style="margin-top:24px">
+        <div class="card-header"><div><p class="eyebrow">JARVIS ASSISTANT</p><h3>Chat with Jarvis</h3></div></div>
+        <p class="muted">Ask Jarvis a question or give it an agency task. Completed requests are saved in Workbench task history.</p>
+        <form id="overview-chat-form">
+          <div class="form-group">
+            <label for="overview-chat-prompt">Your instruction</label>
+            <textarea id="overview-chat-prompt" rows="3" required placeholder="e.g. Create a 30-day social media strategy for a dental clinic in Kampala…"></textarea>
+          </div>
+          <div class="row-actions" style="justify-content:flex-start">
+            <button class="action-button primary-btn" id="overview-chat-submit" type="submit">Send to Jarvis</button>
+            <a class="table-btn secondary" href="/workbench.html">Open Workbench history</a>
+          </div>
+        </form>
+        <div id="overview-chat-response" class="notice hidden" style="margin-top:16px;white-space:pre-wrap" aria-live="polite"></div>
+      </section>
+
       <!-- Key Operational Metrics Grid -->
       <section class="dashboard-stats-grid">
         <div class="stat-card">
