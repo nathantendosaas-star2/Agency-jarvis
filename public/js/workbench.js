@@ -16,13 +16,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const tasksTbody = document.getElementById("tasks-tbody");
   let activeDeliverableText = "";
   let activeDeliverableType = "markdown";
+  let activeTaskId = null;
 
   async function loadTasks() {
     try {
       const res = await fetch("/api/workbench?limit=20");
       if (!res.ok) throw new Error("Failed to load workbench history");
       const data = await res.json();
-      renderTasks(data.tasks || []);
+      const tasks = data.tasks || [];
+      renderTasks(tasks);
+      if (activeTaskId) {
+        const activeTask = tasks.find((task) => task.id === activeTaskId);
+        if (activeTask?.status === "completed" && activeTask.result) {
+          displayDeliverable(activeTask.task_type, activeTask.result, activeTask.metadata || {});
+          activeTaskId = null;
+          runTaskBtn.disabled = false;
+          runTaskBtn.textContent = "Execute Task with Jarvis";
+        } else if (activeTask?.status === "failed") {
+          alert("Workbench task failed: " + (activeTask.error_message || "Unknown error"));
+          activeTaskId = null;
+          runTaskBtn.disabled = false;
+          runTaskBtn.textContent = "Execute Task with Jarvis";
+        }
+      }
     } catch (err) {
       tasksTbody.innerHTML = `<tr><td colspan="5" class="state-message error-message">${escapeHtml(err.message)}</td></tr>`;
     }
