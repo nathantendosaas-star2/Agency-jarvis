@@ -37,7 +37,11 @@ You MUST respond strictly in valid JSON format:
 }`;
 
 async function generateOutreachDraft(lead, research, emailBrief = "") {
-  const prompt = `Generate a personalized cold outreach email for this prospect:
+  const prompt = `Generate a personalized cold outreach email for this prospect.
+
+USER EMAIL BRIEF (follow this direction while keeping all claims truthful and grounded in the research):
+${emailBrief || "Use your best judgment to write a concise, relevant introduction to our SMMA services."}
+
 Business Name: ${lead.business_name}
 Contact Name: ${lead.contact_name || "Business Owner"}
 Industry/Category: ${lead.business_category || lead.industry || "Local Business"}
