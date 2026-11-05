@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const badgeSupabase = document.getElementById("badge-supabase");
   const badgeAI = document.getElementById("badge-ai");
   const badgeTavily = document.getElementById("badge-tavily");
-  const badgeSmtp = document.getElementById("badge-bird");
+  const badgeSmtp = document.getElementById("badge-smtp");
   const badgeBuffer = document.getElementById("badge-buffer");
   const badgeSheets = document.getElementById("badge-sheets");
 
@@ -13,13 +13,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const aiModelSelect = document.getElementById("ai-model-select");
   const saveAIModelButton = document.getElementById("save-ai-model-btn");
   const testTavilyBtn = document.getElementById("test-tavily-btn");
-  const testSmtpBtn = document.getElementById("test-bird-btn");
+  const testSmtpBtn = document.getElementById("test-smtp-btn");
   const testBufferBtn = document.getElementById("test-buffer-btn");
 
   const resSupabase = document.getElementById("res-supabase");
   const resAI = document.getElementById("res-ai");
   const resTavily = document.getElementById("res-tavily");
-  const resSmtp = document.getElementById("res-bird");
+  const resSmtp = document.getElementById("res-smtp");
   const resBuffer = document.getElementById("res-buffer");
 
   async function loadConfigStatus() {
