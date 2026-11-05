@@ -36,7 +36,7 @@ You MUST respond strictly in valid JSON format:
   "suggested_follow_up": "Draft response to this prospect, or empty string if not interested"
 }`;
 
-async function generateOutreachDraft(lead, research) {
+async function generateOutreachDraft(lead, research, emailBrief = "") {
   const prompt = `Generate a personalized cold outreach email for this prospect:
 Business Name: ${lead.business_name}
 Contact Name: ${lead.contact_name || "Business Owner"}
