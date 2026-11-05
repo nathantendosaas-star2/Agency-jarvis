@@ -147,7 +147,7 @@ Deploy Agency Jarvis as a standard Node Web Service:
    - `SMTP_HOST`
    - `SMTP_FROM_EMAIL`
    - `SMTP_FROM_NAME`
-   - `SMTP_PORT=587, SMTP_SECURE=false, SMTP_USER, SMTP_PASS`
+   - `SMTP_PORT`\n   - `SMTP_SECURE`\n   - `SMTP_USER`\n   - `SMTP_PASS`
    - `BUFFER_ACCESS_TOKEN`
    - `GOOGLE_SHEETS_SCRIPT_URL`
    - `GOOGLE_SHEETS_API_SECRET`
