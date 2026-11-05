@@ -19,16 +19,21 @@ function requireSameOrigin(req, res, next) {
 
   try {
     const parsed = new URL(origin);
-    // Render terminates HTTPS at its proxy, so validate against the public
-    // forwarded host/protocol rather than an internal HTTP connection.
     const forwardedHost = req.get("x-forwarded-host");
     const forwardedProto = req.get("x-forwarded-proto");
     const expectedHost = (forwardedHost || req.get("host") || "").split(",")[0].trim();
     const expectedProtocol = (forwardedProto || req.protocol || "").split(",")[0].trim();
-    if (
-      parsed.host !== expectedHost ||
-      parsed.protocol !== `${expectedProtocol.replace(/:$/, "")}:`
-    ) {
+    const backendOrigin = `${expectedProtocol.replace(/:$/, "")}://${expectedHost}`;
+    const configuredFrontendOrigins = [process.env.FRONTEND_URL, process.env.NETLIFY_URL]
+      .filter(Boolean)
+      .map(value => {
+        try { return new URL(value).origin; } catch { return null; }
+      })
+      .filter(Boolean);
+
+    // Accept the backend's own origin and explicitly configured frontend origins.
+    // This supports Netlify's same-origin proxy without weakening the allowlist.
+    if (parsed.origin !== backendOrigin && !configuredFrontendOrigins.includes(parsed.origin)) {
       return res.status(403).json({ error: "Origin check failed." });
     }
     return next();
