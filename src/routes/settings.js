@@ -1,6 +1,6 @@
 const express = require("express");
 const { isSupabaseConfigured, getSupabaseClient } = require("../config/supabase");
-const { testSmtpConnection, getSmtpConfig } = require("../services/smtpService");
+const { testBirdConnection, getBirdConfig } = require("../services/smtpService");
 const { testBufferConnection, getBufferConfig } = require("../services/bufferService");
 const { researchBusinessWithTavily } = require("../services/tavilyService");
 const { callAI, getAIProvider, getSelectedGeminiModel, loadSelectedGeminiModel, setSelectedGeminiModel, SUPPORTED_GEMINI_MODELS } = require("../services/openrouterService");
@@ -12,13 +12,13 @@ function createSettingsRouter() {
   router.get("/status", async (_req, res) => {
     res.set("Cache-Control", "no-store");
     await loadSelectedGeminiModel();
-    const smtpConfig = getSmtpConfig();
+    const birdConfig = getBirdConfig();
     const bufferConfig = getBufferConfig();
 
     return res.status(200).json({
       supabase: {
         configured: isSupabaseConfigured(),
-        url: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\/\/[^/]{4})[^/]+/, "$1***") : null
+        url: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\\/\\/[^/]{4})[^/]+/, "$1***") : null
       },
       ai: {
         provider: getAIProvider(),
@@ -33,11 +33,10 @@ function createSettingsRouter() {
       tavily: {
         configured: Boolean(process.env.TAVILY_API_KEY)
       },
-      smtp: {
-        configured: smtpConfig.isConfigured,
-        host: smtpConfig.host || null,
-        port: smtpConfig.port,
-        from: smtpConfig.from || null
+      bird: {
+        configured: birdConfig.isConfigured,
+        fromEmail: birdConfig.fromEmail || null,
+        fromName: birdConfig.fromName || null
       },
       buffer: {
         configured: bufferConfig.isConfigured
@@ -118,10 +117,10 @@ function createSettingsRouter() {
     }
   });
 
-  // POST /api/settings/test/smtp
-  router.post("/test/smtp", async (_req, res) => {
+  // POST /api/settings/test/bird
+  router.post("/test/bird", async (_req, res) => {
     res.set("Cache-Control", "no-store");
-    const testResult = await testSmtpConnection();
+    const testResult = await testBirdConnection();
     return res.status(200).json({ success: testResult.connected, message: testResult.message });
   });
 
