@@ -11,7 +11,7 @@ Agency Jarvis is an AI-powered operating system for running a Social Media Marke
 - **Database**: Supabase PostgreSQL (`@supabase/supabase-js`).
 - **AI Gateway**: Google Gemini API by default, with OpenRouter available as an optional alternative.
 - **Web Intelligence**: Tavily API for evidence collection.
-- **Outbound Email**: SMTP (Nodemailer) with explicit administrator approval gating and safe dev sandbox.
+- **Outbound Email**: Bird Email API via `@messagebird/sdk`, with explicit administrator approval gating and safe development simulation.
 - **Social Scheduling**: Buffer API.
 - **Lead Ingestion**: Google Forms → Google Sheets → Google Apps Script Web App → Jarvis API.
 - **Security**: Single administrator bcrypt password, secure HTTP-only cookies, SameSite cookies, login rate limiting, helmet security headers.
@@ -98,10 +98,13 @@ Agency Jarvis uses Supabase PostgreSQL. Migrations are organized sequentially in
 - Obtain an API key from [tavily.com](https://tavily.com).
 - Set `TAVILY_API_KEY`.
 
-### SMTP Email
-- Provide standard credentials for your transactional email provider (Mailgun, SendGrid, Amazon SES, Postmark, etc.):
-  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
-- To prevent real emails from being sent during testing, set `SMTP_DEV_MODE=true`.
+### Bird Email
+- Create an API key in Bird under **Developers → API keys**.
+- Set `BIRD_API_KEY`, `BIRD_FROM_EMAIL`, and optionally `BIRD_FROM_NAME`.
+- Verify the sending domain/address in Bird before sending real prospect emails.
+- Keep `BIRD_DEV_MODE=true` locally to simulate delivery. Set it to `false` only when you intend to send real emails.
+- The key is read only by the backend; never add it to browser JavaScript or commit it to Git.
+- Bird's `accepted` response means the provider accepted the email for asynchronous delivery, not that it reached the recipient's inbox.
 
 ### Buffer Publishing
 - Create a developer app or generate an access token in your Buffer dashboard.
@@ -116,7 +119,7 @@ Run the test suite:
 ```bash
 npm test
 ```
-The test suite utilizes Node's built-in test runner (`node:test`) and mocks all external APIs (OpenRouter, Tavily, Buffer, SMTP) to prevent real API calls or outbound emails.
+The test suite utilizes Node's built-in test runner (`node:test`) and mocks external APIs to prevent real API calls or outbound emails.
 
 ---
 
@@ -141,11 +144,10 @@ Deploy Agency Jarvis as a standard Node Web Service:
    - `OPENROUTER_API_KEY`
    - `OPENROUTER_MODEL`
    - `TAVILY_API_KEY`
-   - `SMTP_HOST`
-   - `SMTP_PORT`
-   - `SMTP_USER`
-   - `SMTP_PASSWORD`
-   - `SMTP_FROM`
+   - `BIRD_API_KEY`
+   - `BIRD_FROM_EMAIL`
+   - `BIRD_FROM_NAME`
+   - `BIRD_DEV_MODE=false`
    - `BUFFER_ACCESS_TOKEN`
    - `GOOGLE_SHEETS_SCRIPT_URL`
    - `GOOGLE_SHEETS_API_SECRET`

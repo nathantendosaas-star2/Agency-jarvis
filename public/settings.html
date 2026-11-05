@@ -45,14 +45,12 @@
         <div>
           <p class="eyebrow">INTEGRATION HEALTH</p>
           <h2>Manage Connected Agency Services</h2>
-          <p class="muted">Check operational status and run non-destructive connection tests for database, AI gateway, search, SMTP, and social publishing.</p>
+          <p class="muted">Check operational status and run non-destructive connection tests for database, AI gateway, search, Bird email, and social publishing.</p>
         </div>
         <div class="welcome-orb" aria-hidden="true">J</div>
       </section>
 
-      <!-- Integrations Matrix Grid -->
       <section class="service-grid" style="margin-top:24px">
-        <!-- Supabase -->
         <div class="service-card">
           <div class="service-header">
             <h4>Supabase PostgreSQL</h4>
@@ -65,7 +63,6 @@
           </div>
         </div>
 
-        <!-- AI Orchestrator -->
         <div class="service-card">
           <div class="service-header">
             <h4>Gemini AI Orchestrator</h4>
@@ -87,7 +84,6 @@
           </div>
         </div>
 
-        <!-- Tavily -->
         <div class="service-card">
           <div class="service-header">
             <h4>Tavily Web Search</h4>
@@ -100,20 +96,18 @@
           </div>
         </div>
 
-        <!-- SMTP -->
         <div class="service-card">
           <div class="service-header">
-            <h4>SMTP Email Service</h4>
-            <span id="badge-smtp" class="status-badge status-new">Checking…</span>
+            <h4>Bird Email Service</h4>
+            <span id="badge-bird" class="status-badge status-new">Checking…</span>
           </div>
-          <p class="service-desc">Sends approved outbound cold outreach to prospective clients.</p>
+          <p class="service-desc">Sends administrator-approved prospect outreach through Bird. API credentials remain on the server.</p>
           <div class="service-actions">
-            <button class="table-btn secondary" id="test-smtp-btn">Verify SMTP</button>
-            <span id="res-smtp" class="test-result-text"></span>
+            <button class="table-btn secondary" id="test-bird-btn">Test Bird API</button>
+            <span id="res-bird" class="test-result-text"></span>
           </div>
         </div>
 
-        <!-- Buffer -->
         <div class="service-card">
           <div class="service-header">
             <h4>Buffer Publishing</h4>
@@ -126,7 +120,6 @@
           </div>
         </div>
 
-        <!-- Google Sheets -->
         <div class="service-card">
           <div class="service-header">
             <h4>Google Sheets Ingestion</h4>
@@ -139,7 +132,6 @@
         </div>
       </section>
 
-      <!-- Configuration Guide Notice -->
       <section class="notice" style="margin-top:32px">
         <strong>Secret Safety Notice</strong>
         <p>Agency Jarvis keeps all API credentials server-side. For production deployments on Render, configure environment variables in your Render Service Dashboard.</p>
