@@ -4,7 +4,6 @@ const {
   getOutreachById,
   draftOutreachForLead,
   requestOutreachApproval,
-  sendApprovedOutreach,
   recordAndClassifyReply
 } = require("../services/outreachService");
 
@@ -58,15 +57,11 @@ function createOutreachRouter() {
     }
   });
 
-  router.post("/:id/send", async (req, res) => {
+  router.post("/:id/send", (req, res) => {
     res.set("Cache-Control", "no-store");
-    try {
-      const result = await sendApprovedOutreach(req.params.id);
-      return res.status(200).json(result);
-    } catch (err) {
-      console.error("Send email error:", err.message, err.cause || "");
-      return res.status(400).json({ error: describeOutreachError(err) });
-    }
+    return res.status(410).json({
+      error: "Direct email sending is disabled. Open the approved draft in Gmail and send it manually."
+    });
   });
 
   router.post("/:id/reply", async (req, res) => {
