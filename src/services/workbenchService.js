@@ -34,7 +34,7 @@ async function runWorkbenchTask({ prompt, taskType, clientId = null, leadId = nu
     throw new Error("Persistent background tasks require Supabase to be configured.");
   }
   const initialRecord = {
-    task_type: taskType || "marketing_strategy",
+    task_type: taskType || "auto",
     prompt: prompt.trim(),
     client_id: clientId || null,
     lead_id: leadId || null,
