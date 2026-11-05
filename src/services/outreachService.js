@@ -20,14 +20,18 @@ async function listOutreachRecords(filters = {}) {
 
   const { data, error, count } = await query;
   if (error) throw error;
-  return { records: data || [], total: count || 0 };
+  const records = (data || []).map(record => ({
+    ...record,
+    message_body: record.message_body ?? record.body ?? ""
+  }));
+  return { records, total: count || 0 };
 }
 
 async function getOutreachById(id) {
   if (!isSupabaseConfigured()) return null;
   const { data, error } = await getSupabaseClient().from("outreach_records").select("*, leads(*)").eq("id", id).maybeSingle();
   if (error) throw error;
-  return data;
+  return data ? { ...data, message_body: data.message_body ?? data.body ?? "" } : null;
 }
 
 async function draftOutreachForLead(leadId, options = {}) {
@@ -44,6 +48,7 @@ async function draftOutreachForLead(leadId, options = {}) {
     channel: "email",
     recipient: lead.email,
     subject: draft.subject,
+    body: draft.body,
     message_body: draft.body,
     email_brief: emailBrief || null,
     status: "draft"
@@ -67,7 +72,7 @@ async function draftOutreachForLead(leadId, options = {}) {
     metadata: { leadId, subject: draft.subject }
   });
 
-  return { ...data, alternative_subjects: draft.subject_lines, angle: draft.angle };
+  return { ...data, message_body: data.message_body ?? data.body ?? draft.body, alternative_subjects: draft.subject_lines, angle: draft.angle };
 }
 
 async function requestOutreachApproval(outreachId) {
