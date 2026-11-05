@@ -1,7 +1,7 @@
 const { getSupabaseClient, isSupabaseConfigured } = require("../config/supabase");
 const { GEMINI_FUNCTION_DECLARATIONS, executeAgentTool, readWorkspaceFile } = require("./agentTools");
 
-const DEFAULT_MODEL = "gemini-3.8-flash";
+const DEFAULT_MODEL = "gemini-3.6-flash";
 let runtimeGeminiModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 let runtimeModelLoaded = false;
 const SUPPORTED_GEMINI_MODELS = Object.freeze([
