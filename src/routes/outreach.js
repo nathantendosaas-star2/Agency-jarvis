@@ -8,6 +8,14 @@ const {
   recordAndClassifyReply
 } = require("../services/outreachService");
 
+function describeOutreachError(err) {
+  if (err?.message === "fetch failed") {
+    const cause = err.cause?.code ? ` (${err.cause.code})` : "";
+    return `Network request failed${cause}. Check this PC's internet, DNS, and firewall, then use Settings > Test Supabase and Settings > Test Bird to identify which service cannot be reached.`;
+  }
+  return err?.message || "Unknown outreach error";
+}
+
 function createOutreachRouter() {
   const router = express.Router();
 
@@ -45,8 +53,8 @@ function createOutreachRouter() {
       const approval = await requestOutreachApproval(req.params.id);
       return res.status(200).json(approval);
     } catch (err) {
-      console.error("Request approval error:", err.message);
-      return res.status(400).json({ error: err.message });
+      console.error("Request approval error:", err.message, err.cause || "");
+      return res.status(400).json({ error: describeOutreachError(err) });
     }
   });
 
@@ -56,8 +64,8 @@ function createOutreachRouter() {
       const result = await sendApprovedOutreach(req.params.id);
       return res.status(200).json(result);
     } catch (err) {
-      console.error("Send email error:", err.message);
-      return res.status(400).json({ error: err.message });
+      console.error("Send email error:", err.message, err.cause || "");
+      return res.status(400).json({ error: describeOutreachError(err) });
     }
   });
 
