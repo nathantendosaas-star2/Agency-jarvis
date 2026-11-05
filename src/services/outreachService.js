@@ -24,6 +24,28 @@ async function listOutreachRecords(filters = {}) {
     ...record,
     message_body: record.message_body ?? record.body ?? ""
   }));
+
+  // Attach the latest approval state so the Outreach UI never presents an
+  // unapproved draft as ready to send.
+  if (records.length) {
+    const ids = records.map(record => record.id);
+    const { data: approvals, error: approvalError } = await getSupabaseClient()
+      .from("approvals")
+      .select("id,entity_id,status,created_at")
+      .eq("entity_type", "outreach")
+      .eq("action_type", "send_email")
+      .in("entity_id", ids)
+      .order("created_at", { ascending: false });
+    if (approvalError) throw approvalError;
+
+    const latestByEntity = new Map();
+    for (const approval of approvals || []) {
+      if (!latestByEntity.has(approval.entity_id)) latestByEntity.set(approval.entity_id, approval);
+    }
+    for (const record of records) {
+      record.approval_status = latestByEntity.get(record.id)?.status || null;
+    }
+  }
   return { records, total: count || 0 };
 }
 
@@ -114,7 +136,9 @@ async function sendApprovedOutreach(outreachId) {
 
   // Atomically consume the approved decision before calling SMTP.
   const approval = await claimApprovalForExecution("outreach", outreachId, "send_email", { to: record.recipient, subject: record.subject, body: record.message_body });
-  if (!approval) throw new Error("Backend Approval Error: no current, matching administrator approval exists for this email.");
+  if (!approval) {
+    throw new Error("This email has not been approved yet. Submit it for approval on the Dashboard, approve it there, then return here and refresh Outreach.");
+  }
 
   try {
     const sendResult = await sendOutboundEmail({
