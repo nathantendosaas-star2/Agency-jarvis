@@ -69,6 +69,12 @@ async function claimNextWorkbenchTask() {
 
 async function executeWorkbenchTask(task) {
   const supabase = getSupabaseClient();
+  const heartbeat = setInterval(() => {
+    supabase.from("workbench_tasks").update({ locked_at: new Date().toISOString() })
+      .eq("id", task.id).eq("locked_by", WORKER_ID)
+      .then(({ error }) => { if (error) console.warn("Workbench heartbeat failed:", error.message); });
+  }, 30000);
+  if (typeof heartbeat.unref === "function") heartbeat.unref();
   try {
     let resolvedType = task.task_type;
     if (!resolvedType || resolvedType === "auto") {
@@ -106,6 +112,8 @@ async function executeWorkbenchTask(task) {
       entityType: "workbench", entityId: task.id
     });
     console.error(`Workbench task ${task.id} failed:`, err.message);
+  } finally {
+    clearInterval(heartbeat);
   }
 }
 
