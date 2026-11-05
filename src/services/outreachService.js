@@ -137,7 +137,7 @@ async function sendApprovedOutreach(outreachId) {
   // Atomically consume the approved decision before calling SMTP.
   const approval = await claimApprovalForExecution("outreach", outreachId, "send_email", { to: record.recipient, subject: record.subject, body: record.message_body });
   if (!approval) {
-    throw new Error("This email has not been approved yet. Submit it for approval on the Dashboard, approve it there, then return here and refresh Outreach.");
+    throw new Error("Backend Approval Error: This email has not been approved yet. Submit it for approval on the Dashboard, approve it there, then return here and refresh Outreach.");
   }
 
   try {
