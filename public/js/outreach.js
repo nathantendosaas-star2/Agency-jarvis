@@ -271,11 +271,29 @@ document.addEventListener("DOMContentLoaded", () => {
       actionGroup.className = "row-actions";
 
       if (rec.status === "draft") {
-        const sendBtn = document.createElement("button");
-        sendBtn.className = "table-btn primary";
-        sendBtn.textContent = "Send via SMTP";
-        sendBtn.addEventListener("click", () => sendEmail(rec.id));
-        actionGroup.appendChild(sendBtn);
+        if (rec.approval_status === "approved") {
+          const sendBtn = document.createElement("button");
+          sendBtn.className = "table-btn primary";
+          sendBtn.textContent = "Send via Bird";
+          sendBtn.addEventListener("click", () => sendEmail(rec.id));
+          actionGroup.appendChild(sendBtn);
+        } else if (rec.approval_status === "pending" || rec.approval_status === "executing") {
+          const pending = document.createElement("span");
+          pending.className = "lead-meta";
+          pending.textContent = "Awaiting administrator approval";
+          actionGroup.appendChild(pending);
+        } else if (rec.approval_status === "rejected") {
+          const rejected = document.createElement("span");
+          rejected.className = "lead-meta";
+          rejected.textContent = "Approval rejected — submit a revised draft";
+          actionGroup.appendChild(rejected);
+        } else {
+          const requestBtn = document.createElement("button");
+          requestBtn.className = "table-btn secondary";
+          requestBtn.textContent = "Request Approval";
+          requestBtn.addEventListener("click", () => requestApprovalForRecord(rec.id));
+          actionGroup.appendChild(requestBtn);
+        }
       }
 
       if (rec.status === "sent") {
@@ -292,8 +310,24 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  async function requestApprovalForRecord(outreachId) {
+    if (!confirm("Submit this email to the Dashboard for administrator approval? It will not send yet.")) return;
+    try {
+      const res = await fetch(`/api/outreach/${outreachId}/request-approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to request approval");
+      alert("Approval requested. Open the Dashboard and approve the email before sending.");
+      await loadOutreachRecords();
+    } catch (err) {
+      alert("Approval request failed: " + err.message);
+    }
+  }
+
   async function sendEmail(outreachId) {
-    if (!confirm("Send this email through the configured SMTP server? (Requires administrator approval)")) return;
+    if (!confirm("Send this administrator-approved email through Bird?")) return;
     try {
       const res = await fetch(`/api/outreach/${outreachId}/send`, {
         method: "POST",
@@ -301,7 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Sending email failed");
-      alert(data.sendResult?.simulated ? "Simulated email sent successfully (Sandbox Mode)!" : "Email dispatched successfully!");
+      alert(data.sendResult?.simulated ? "Simulated email sent successfully (Bird development mode)!" : "Email dispatched successfully through Bird!");
       loadOutreachRecords();
     } catch (err) {
       alert(`Send failed: ${err.message}`);
