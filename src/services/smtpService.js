@@ -1,93 +1,114 @@
-const nodemailer = require("nodemailer");
 const { logActivity } = require("./activityService");
 
-function getSmtpConfig() {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASSWORD;
-  const from = process.env.SMTP_FROM || user;
-
-  const isConfigured = Boolean(host && user && pass);
-  return { host, port, user, pass, from, isConfigured };
+function getBirdConfig() {
+  return {
+    apiKey: process.env.BIRD_API_KEY,
+    fromEmail: process.env.BIRD_FROM_EMAIL,
+    fromName: process.env.BIRD_FROM_NAME || "Agency Jarvis",
+    isConfigured: Boolean(process.env.BIRD_API_KEY && process.env.BIRD_FROM_EMAIL)
+  };
 }
 
-function createTransporter(config = getSmtpConfig()) {
-  if (!config.isConfigured) {
-    return null;
+let birdClientPromise;
+
+async function getBirdClient() {
+  const config = getBirdConfig();
+  if (!config.apiKey) {
+    throw new Error("Bird is not configured. Set BIRD_API_KEY in the server environment.");
   }
-  return nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.port === 465,
-    auth: {
-      user: config.user,
-      pass: config.pass
-    }
-  });
+
+  if (!birdClientPromise) {
+    birdClientPromise = import("@messagebird/sdk").then(({ BirdClient }) => {
+      return new BirdClient({ apiKey: config.apiKey });
+    }).catch((error) => {
+      birdClientPromise = null;
+      throw error;
+    });
+  }
+
+  return birdClientPromise;
 }
 
-async function testSmtpConnection() {
-  const config = getSmtpConfig();
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function textToHtml(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line ? `<p>${escapeHtml(line)}</p>` : "")
+    .join("");
+}
+
+async function testBirdConnection() {
+  const config = getBirdConfig();
   if (!config.isConfigured) {
     return {
       connected: false,
-      message: "SMTP is not fully configured (missing SMTP_HOST, SMTP_USER, or SMTP_PASSWORD)."
+      message: "Bird is not fully configured (set BIRD_API_KEY and BIRD_FROM_EMAIL)."
     };
   }
 
-  const transporter = createTransporter(config);
   try {
-    await transporter.verify();
-    return { connected: true, message: "SMTP connection established successfully." };
+    const bird = await getBirdClient();
+    await bird.email.list();
+    return { connected: true, message: "Bird API connection verified successfully." };
   } catch (err) {
-    return { connected: false, message: `SMTP verification failed: ${err.message}` };
+    return { connected: false, message: `Bird API verification failed: ${err.message}` };
   }
 }
 
 async function sendOutboundEmail({ to, subject, html, text }) {
-  const config = getSmtpConfig();
+  const config = getBirdConfig();
   const isDev = process.env.NODE_ENV !== "production";
 
-  // Prevent real emails if configured in test/dev mode or unconfigured
-  if (process.env.SMTP_DEV_MODE === "true" || (!config.isConfigured && isDev)) {
-    console.log(`[SMTP DEV MODE] Simulated email sent to ${to}: "${subject}"`);
+  // Preserve the existing safe local-development behavior: never send real email in dev mode.
+  if (process.env.BIRD_DEV_MODE === "true" || (!config.isConfigured && isDev)) {
+    console.log(`[BIRD DEV MODE] Simulated email to ${to}: "${subject}"`);
     await logActivity("email_sent_simulated", `Simulated email to ${to}: ${subject}`, {
-      metadata: { to, subject }
+      metadata: { to, subject, provider: "bird" }
     });
     return {
       success: true,
       simulated: true,
-      messageId: `sim-${Date.now()}@agencyjarvis.local`
+      provider: "bird",
+      messageId: `sim-${Date.now()}@agencyjarvis.local`,
+      status: "simulated"
     };
   }
 
   if (!config.isConfigured) {
-    throw new Error("SMTP is not configured on the server. Set SMTP_HOST, SMTP_USER, and SMTP_PASSWORD.");
+    throw new Error("Bird is not configured. Set BIRD_API_KEY and BIRD_FROM_EMAIL on the server.");
   }
 
-  const transporter = createTransporter(config);
-  const info = await transporter.sendMail({
-    from: config.from,
-    to,
+  const bird = await getBirdClient();
+  const message = await bird.email.send({
+    from: { email: config.fromEmail, name: config.fromName },
+    to: Array.isArray(to) ? to : [to],
     subject,
-    text,
-    html: html || text
+    html: html || textToHtml(text || "")
   });
 
-  await logActivity("email_sent", `Sent email to ${to}: ${subject}`, {
-    metadata: { to, subject, messageId: info.messageId }
+  await logActivity("email_sent", `Bird accepted email to ${to}: ${subject}`, {
+    metadata: { to, subject, messageId: message.id, provider: "bird", providerStatus: message.status }
   });
 
   return {
     success: true,
     simulated: false,
-    messageId: info.messageId
+    provider: "bird",
+    messageId: message.id,
+    status: message.status
   };
 }
 
 module.exports = {
-  getSmtpConfig,
-  testSmtpConnection,
+  getBirdConfig,
+  testBirdConnection,
   sendOutboundEmail
 };
