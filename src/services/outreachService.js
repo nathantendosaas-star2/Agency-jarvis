@@ -44,6 +44,7 @@ async function draftOutreachForLead(leadId, options = {}) {
     recipient: lead.email,
     subject: draft.subject,
     message_body: draft.body,
+    email_brief: emailBrief || null,
     status: "draft"
   };
 
