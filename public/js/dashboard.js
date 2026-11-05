@@ -30,7 +30,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Jarvis could not complete the request.");
-        chatResponse.textContent = data.result || "Task completed. Open Workbench to view the saved result.";
+        chatResponse.textContent = data.status === "pending" || data.status === "running"
+          ? "Task queued in the backend. It will continue if you refresh or close this page. Track its progress and open the result in Workbench."
+          : (data.result || "Task saved. Open Workbench to view it.");
         chatPrompt.value = "";
       } catch (error) {
         chatResponse.textContent = "Error: " + error.message;
