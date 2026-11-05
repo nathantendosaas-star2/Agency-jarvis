@@ -274,8 +274,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (rec.approval_status === "approved") {
           const sendBtn = document.createElement("button");
           sendBtn.className = "table-btn primary";
-          sendBtn.textContent = "Open in Gmail";
-          sendBtn.addEventListener("click", () => openGmailCompose(rec));
+          sendBtn.textContent = "Send via Bird";
+          sendBtn.addEventListener("click", () => sendEmail(rec.id));
           actionGroup.appendChild(sendBtn);
         } else if (rec.approval_status === "pending" || rec.approval_status === "executing") {
           const pending = document.createElement("span");
