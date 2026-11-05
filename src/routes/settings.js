@@ -3,7 +3,7 @@ const { isSupabaseConfigured, getSupabaseClient } = require("../config/supabase"
 const { testSmtpConnection, getSmtpConfig } = require("../services/smtpService");
 const { testBufferConnection, getBufferConfig } = require("../services/bufferService");
 const { researchBusinessWithTavily } = require("../services/tavilyService");
-const { callAI, getAIProvider, getSelectedGeminiModel, loadSelectedGeminiModel, setSelectedGeminiModel, SUPPORTED_GEMINI_MODELS } = require("../services/openrouterService");
+const { callAI, getAIProvider, getSelectedGeminiModel, getSelectedOpenRouterModel, loadSelectedGeminiModel, setSelectedGeminiModel, SUPPORTED_GEMINI_MODELS } = require("../services/openrouterService");
 
 function createSettingsRouter() {
   const router = express.Router();
@@ -23,12 +23,12 @@ function createSettingsRouter() {
       ai: {
         provider: getAIProvider(),
         configured: getAIProvider() === "gemini" ? Boolean(process.env.GEMINI_API_KEY) : Boolean(process.env.OPENROUTER_API_KEY),
-        model: getAIProvider() === "gemini" ? getSelectedGeminiModel() : (process.env.OPENROUTER_MODEL || "openrouter/free"),
+        model: getAIProvider() === "gemini" ? getSelectedGeminiModel() : getSelectedOpenRouterModel(),
         availableModels: SUPPORTED_GEMINI_MODELS
       },
       openrouter: {
         configured: Boolean(process.env.OPENROUTER_API_KEY),
-        model: process.env.OPENROUTER_MODEL || "openrouter/free"
+        model: getSelectedOpenRouterModel()
       },
       tavily: {
         configured: Boolean(process.env.TAVILY_API_KEY)
