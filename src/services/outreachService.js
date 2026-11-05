@@ -36,7 +36,8 @@ async function draftOutreachForLead(leadId, options = {}) {
   if (!lead.email) throw new Error("Lead does not have an email address specified.");
 
   const research = await getResearchByLeadId(leadId);
-  const emailBrief = typeof options.emailBrief === "string" ? options.emailBrief.trim() : "";\n  const draft = await generateOutreachDraft(lead, research, emailBrief);
+  const emailBrief = typeof options.emailBrief === "string" ? options.emailBrief.trim() : "";
+  const draft = await generateOutreachDraft(lead, research, emailBrief);
 
   const recordPayload = {
     lead_id: leadId,
