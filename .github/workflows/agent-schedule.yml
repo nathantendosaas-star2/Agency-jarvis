@@ -39,7 +39,7 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           AI_PROVIDER: ${{ vars.AI_PROVIDER }}
           AGENT_FORCE_RUN: ${{ inputs.force_run && 'true' || 'false' }}
-          AGENT_TRIGGER: manual
+          AGENT_TRIGGER: ${{ github.event_name == 'workflow_dispatch' && 'manual' || 'schedule' }}
           AGENT_MAX_RUNTIME_SECONDS: "420"
           AGENT_MAX_TASKS: "10"
         run: node scripts/agent-runner.js
