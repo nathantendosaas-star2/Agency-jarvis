@@ -1,194 +1,239 @@
-# Agency Jarvis — SMMA Operating System (MVP)
+# Agency Jarvis — SMMA Operating System
 
-Agency Jarvis is an AI-powered operating system for running a Social Media Marketing Agency (SMMA). It centralizes prospect intake, automated web intelligence, AI lead qualification, administrator-approved cold outreach, agency deliverable generation, and multi-platform social media publishing via Buffer.
+Agency Jarvis is an AI-powered operating system for running a Social Media Marketing Agency (SMMA). It centralizes lead intake, web intelligence, AI qualification, outreach generation and approval, social publishing, client workspaces, and durable background processing in one application.
 
----
+## Features
 
-## 1. Architecture & Tech Stack
+- Lead management with CSV and Google Sheets ingestion
+- Tavily-powered web research
+- Gemini or OpenRouter lead qualification and outreach generation
+- Administrator-gated outreach review and approval
+- SMTP email delivery through Nodemailer
+- Gmail, Instagram, and WhatsApp outreach workflows
+- Buffer social content publishing
+- Client and agent workbench views
+- Supabase PostgreSQL persistence and row-level security
+- Durable background tasks with retry and recovery
+- Secure, server-side session authentication
 
-- **Backend**: Node.js 22+, Express.js.
-- **Frontend**: Plain HTML5, CSS3, and Vanilla JavaScript (No React, Vue, Tailwind, or build steps).
-- **Database**: Supabase PostgreSQL (`@supabase/supabase-js`).
-- **AI Gateway**: Google Gemini API by default, with OpenRouter available as an optional alternative.
-- **Web Intelligence**: Tavily API for evidence collection.
-- **Outbound Email**: Configurable SMTP via Nodemailer, with explicit administrator approval gating.
-- **Social Scheduling**: Buffer API.
-- **Lead Ingestion**: Google Forms → Google Sheets → Google Apps Script Web App → Jarvis API.
-- **Security**: Single administrator bcrypt password, secure HTTP-only cookies, SameSite cookies, login rate limiting, helmet security headers.
+## Architecture
 
----
+- **Backend:** Node.js 22+ and Express
+- **Frontend:** Static HTML5, CSS3, and vanilla JavaScript in `public/`
+- **Database:** Supabase PostgreSQL
+- **AI:** Google Gemini (default) or OpenRouter
+- **Web intelligence:** Tavily
+- **Email:** SMTP through Nodemailer
+- **Social publishing:** Buffer
+- **Lead ingestion:** CSV upload or Google Forms → Google Sheets → Apps Script webhook
 
-## 2. Local Installation & Development
+## Repository Layout
+
+```text
+public/                 Static frontend
+src/                    Server modules, routes, services, and middleware
+server.js               Express application entry point
+scripts/                Operational and setup scripts
+database/migrations/    Supabase SQL migrations
+docs/                   Integration documentation
+test/                   Node test suite
+.env.example            Environment variable template
+render.yaml             Render web service configuration
+```
+
+## Local Development
 
 ### Prerequisites
-- Node.js version 22 or later.
-- npm version 10 or later.
 
-### Steps
+- Node.js 22 or later
+- npm
+- A Supabase project
+- API credentials for any integrations you intend to use
+
+### Setup
+
 1. Clone the repository and install dependencies:
+
    ```bash
-   git checkout <feature-branch>
+   git clone https://github.com/nathantendosaas-star2/Agency-jarvis.git
+   cd Agency-jarvis
    npm install
    ```
 
-2. Create `.env` file based on `.env.example`:
+2. Create a local environment file:
+
    ```bash
    cp .env.example .env
    ```
 
-3. Generate your administrator password hash:
+3. Generate an administrator password hash:
+
    ```bash
    npm run hash-password
    ```
-   Paste the generated bcrypt string into `ADMIN_PASSWORD_HASH` and supply a 32+ character random string for `SESSION_SECRET`.
 
-4. Start development server:
+   Set `ADMIN_PASSWORD_HASH` to the generated bcrypt hash.
+
+4. Generate a session secret:
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+   ```
+
+   Set `SESSION_SECRET` to the generated value.
+
+5. Complete the Supabase and integration values in `.env`, then start the server:
+
    ```bash
    npm run dev
    ```
-   Or production start:
-   ```bash
-   npm start
-   ```
 
-5. Open [http://localhost:10000](http://localhost:10000) in your browser.
+6. Open [http://localhost:10000](http://localhost:10000).
 
----
+## Database Setup
 
-## 3. Database Migrations
+Agency Jarvis uses Supabase PostgreSQL. Apply the migrations in numeric order through Supabase's SQL Editor:
 
-Agency Jarvis uses Supabase PostgreSQL. Migrations are organized sequentially in `database/migrations/`:
+| Migration | Purpose |
+| --- | --- |
+| `001_initial_schema.sql` | Initial leads, research, outreach, social content, and settings tables |
+| `002_lead_reviewer_compatibility.sql` | Lead-review compatibility fields |
+| `003_mvp_extensions.sql` | Workbench, client, approval, activity, audit, RLS, and execution-state support |
+| `004_agentic_workbench.sql` | Agentic workbench and landing-page support |
+| `004_outreach_email_brief.sql` | Outreach email brief support |
+| `005_outreach_message_body_compatibility.sql` | Outbound message-body compatibility |
+| `006_autonomous_lead_pipeline.sql` | Multi-channel pipeline, processing stages, and pipeline jobs |
+| `007_durable_background_tasks.sql` | Durable background-task persistence |
+| `008_workbench_auto_classification.sql` | Workbench auto-classification support |
 
-1. `001_initial_schema.sql` — Baseline schema (`leads`, `lead_research`, `outreach_records`, `social_content`, `app_settings`).
-2. `002_lead_reviewer_compatibility.sql` — Compatibility enhancements for lead qualification fields.
-3. `003_mvp_extensions.sql` — Adds client/workbench/approval/activity tables, audit columns, one-use approval execution state, and RLS/direct-access restrictions.
-4. `004_agentic_workbench.sql` — Adds landing page generator support.
-5. `004_outreach_email_brief.sql` — Outreach campaign brief column.
-6. `005_outreach_message_body_compatibility.sql` — Message body compatibility mirroring.
-7. `006_autonomous_lead_pipeline.sql` — Multi-channel outreach (`gmail`, `instagram`, `whatsapp`), processing stages, auto-approval metadata, and `lead_pipeline_jobs` table for autonomous background processing.
+Run every migration once and in sequence. The service-role key must remain server-side only.
 
-### Applying Migrations
-- Log into your Supabase Dashboard → SQL Editor.
-- If running on a new instance, execute migrations in sequential order up through `006_autonomous_lead_pipeline.sql`.
-- Migration 006 adds `outreach_channel`, `instagram`, `processing_stage`, and `processing_error` to `leads`, updates constraints on `outreach_records`, and creates `lead_pipeline_jobs` with RLS restricted to `service_role`.
+## Google Sheets Ingestion
 
----
+Follow the complete setup in [docs/google-sheets.md](docs/google-sheets.md). In summary:
 
-## 4. Google Sheets Lead Ingestion Setup
+1. Create a sheet containing `Business Name`, `Website`, `Contact Name`, `Email`, `Phone`, `Business Category`, `Location`, and `Notes`.
+2. Add the Apps Script from the guide.
+3. Deploy it as a web app with access set to **Anyone**.
+4. Set `GOOGLE_SHEETS_SCRIPT_URL` and `GOOGLE_SHEETS_API_SECRET` in the server environment.
 
-1. Create a Google Sheet with columns:
-   `Business Name`, `Website`, `Contact Name`, `Email`, `Phone`, `Business Category`, `Location`, `Notes`.
-2. In Google Sheets, navigate to **Extensions → Apps Script**.
-3. Paste the Apps Script code found in `docs/google-sheets.md`.
-4. Set your `API_SECRET` in the script.
-5. Click **Deploy → New deployment → Web app** (Execute as: *Me*, Who has access: *Anyone*).
-6. Copy the Web App URL and configure `GOOGLE_SHEETS_SCRIPT_URL` and `GOOGLE_SHEETS_API_SECRET` in your environment.
-7. Prospects can now be ingested manually via the **Leads** page or automated via webhook.
+## Environment Variables
 
----
+Copy [.env.example](.env.example) before configuring a deployment.
 
-## 5. External Service Setup
+### Core
 
-### Google Gemini API (default)
-- Create an API key in [Google AI Studio](https://aistudio.google.com/apikey).
-- Set `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and `GEMINI_MODEL=gemini-3.5-flash-lite`.
-- Supported model IDs: `gemini-3.5-flash-lite` (default for outreach and autonomous pipeline), `gemini-3.8-flash`, and `gemini-3.6-flash`. Change `GEMINI_MODEL` and restart the server to switch models.
+| Variable | Purpose |
+| --- | --- |
+| `NODE_ENV` | Runtime mode, such as `development` or `production` |
+| `PORT` | HTTP port; defaults to `10000` |
+| `ADMIN_PASSWORD_HASH` | bcrypt hash for the administrator password |
+| `SESSION_SECRET` | Secret used to sign browser sessions |
+| `FRONTEND_URL` | Allowed/deployed frontend origin |
+| `API_BASE_URL` | Optional backend URL for direct frontend API access |
 
-### OpenRouter API (optional alternative)
-- Create an account at [openrouter.ai](https://openrouter.ai) and generate an API key.
-- Set `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and optional `OPENROUTER_MODEL`.
+### Supabase
 
-### Tavily API
-- Obtain an API key from [tavily.com](https://tavily.com).
-- Set `TAVILY_API_KEY`.
+| Variable | Purpose |
+| --- | --- |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Supabase service-role key |
 
-### SMTP Email
-- Create an API key in Bird under **Developers → API keys**.
-- Set `SMTP_HOST`, `SMTP_FROM_EMAIL`, and optionally `SMTP_FROM_NAME`.
-- Verify the sending domain/address in Bird before sending real prospect emails.
-- Keep `BIRD_DEV_MODE=true` locally to simulate delivery. Set it to `false` only when you intend to send real emails.
-- The key is read only by the backend; never add it to browser JavaScript or commit it to Git.
-- Bird's `accepted` response means the provider accepted the email for asynchronous delivery, not that it reached the recipient's inbox.
+### AI and Web Intelligence
 
-### Buffer Publishing
-- Create a developer app or generate an access token in your Buffer dashboard.
-- Set `BUFFER_ACCESS_TOKEN`.
-- Connected channels are automatically retrieved in the **Social Studio** and **Settings** pages.
+| Variable | Purpose |
+| --- | --- |
+| `AI_PROVIDER` | `gemini` or `openrouter` |
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `GEMINI_MODEL` | Gemini model; defaults to `gemini-3.5-flash-lite` |
+| `OPENROUTER_API_KEY` | Optional OpenRouter API key |
+| `OPENROUTER_MODEL` | Optional OpenRouter model; defaults to `openrouter/free` |
+| `TAVILY_API_KEY` | Tavily web-intelligence API key |
 
----
+### Outbound Email
 
-## 6. Automated Testing
+| Variable | Purpose |
+| --- | --- |
+| `SMTP_HOST` | SMTP server hostname |
+| `SMTP_PORT` | SMTP port; usually `587` |
+| `SMTP_SECURE` | Use TLS/SMTPS; normally `false` for STARTTLS |
+| `SMTP_USER` | SMTP account username |
+| `SMTP_PASS` | SMTP account password or app password |
+| `SMTP_FROM_EMAIL` | From email address |
+| `SMTP_FROM_NAME` | From name |
 
-Run the test suite:
+Never expose service-role keys, AI keys, SMTP credentials, or session secrets in frontend code or public repositories.
+
+### Integrations
+
+| Variable | Purpose |
+| --- | --- |
+| `BUFFER_ACCESS_TOKEN` | Buffer API access token |
+| `GOOGLE_SHEETS_SCRIPT_URL` | Deployed Google Apps Script webhook URL |
+| `GOOGLE_SHEETS_API_SECRET` | Shared secret for Sheets ingestion requests |
+
+## Testing
+
+The test suite uses Node's built-in test runner and mocks external integrations where appropriate:
+
 ```bash
 npm test
 ```
-The test suite utilizes Node's built-in test runner (`node:test`) and mocks external APIs to prevent real API calls or outbound emails.
 
----
+Tests live in `test/*.test.js`.
 
-## 7. Render Web Service Deployment (Backend)
+## Render Deployment
 
-Deploy Agency Jarvis as a standard Node Web Service on Render:
+The repository includes a basic `render.yaml` web-service configuration:
 
-1. Create a **New Web Service** on Render connected to this repository.
-2. Configure settings:
-   - **Environment**: `Node`
-   - **Node Version**: `22`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Health Check Path**: `/health`
-3. Configure Environment Variables in Render Dashboard:
-   - `NODE_ENV=production`
-   - `PORT=10000`
-   - `ADMIN_PASSWORD_HASH` (bcrypt hash from `npm run hash-password`)
-   - `SESSION_SECRET` (at least 32 characters)
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `AI_PROVIDER=gemini`
-   - `GEMINI_API_KEY`
-   - `GEMINI_MODEL=gemini-3.5-flash-lite`
-   - `FRONTEND_URL` (your deployed Netlify URL, e.g. `https://agency-jarvis.netlify.app`)
-   - `TAVILY_API_KEY`
-   - `BUFFER_ACCESS_TOKEN`
-   - `GOOGLE_SHEETS_SCRIPT_URL` (optional)
-   - `GOOGLE_SHEETS_API_SECRET` (optional)
+- Runtime: Node
+- Plan: Free
+- Build command: `npm install`
+- Start command: `npm start`
+- Health check: `/health`
+- Production `NODE_ENV`: `production`
+- Port: `10000`
 
----
+On Render:
 
-## 8. Netlify Deployment (Frontend)
+1. Create a new Web Service from this repository.
+2. Use Node 22 or add it explicitly if your deployment environment requires it.
+3. Configure all required environment variables.
+4. Apply the Supabase migrations before starting autonomous workflows.
 
-Deploy Agency Jarvis frontend to Netlify:
+A production deployment should use HTTPS and should set `FRONTEND_URL` to the deployed frontend origin.
 
-1. Connect the GitHub repository in Netlify.
-2. Configure build settings:
-   - **Base directory**: `public`
-   - **Publish directory**: `public`
-   - **Build command**: (leave empty or `echo "Frontend static deploy"`)
-3. Configure Environment Variables in Netlify:
-   - `API_BASE_URL`: The URL of your deployed Render backend (e.g. `https://agency-jarvis.onrender.com`).
-4. Proxy Configuration:
-   - `public/_redirects` contains `/api/* :API_BASE_URL/api/:splat 200` to transparently route frontend API calls to Render without cross-origin cookie restrictions.
+## Static Frontend Deployment
 
----
+The frontend is in `public/` and can be deployed as a static site.
 
-## 9. Testing & Troubleshooting Autonomous Pipeline
+- Netlify base directory: `public`
+- Netlify publish directory: `public`
+- Build command: leave blank or use `echo "Static frontend"`
+- `public/_redirects` can proxy `/api/*` requests to the backend
 
-### Testing CSV Lead Import & Automation
-1. Navigate to the **Leads** page.
-2. Click **Import CSV Leads**.
-3. Choose a default outreach channel (`Gmail`, `Instagram`, or `WhatsApp`).
-4. Select a CSV file containing at least `Business Name` and `Email` or `Phone` or `Instagram`.
-5. Click **Upload & Start Automation**.
-6. The leads will be saved, duplicate checked, and enqueued.
-7. The autonomous worker automatically proceeds through:
-   - Web intelligence research via Tavily
-   - SMMA qualification via OpenRouter/Gemini
-   - Outreach draft generation via Gemini 3.5 Flash Lite tailored to the channel
-   - Automatic draft approval
-8. Navigate to **Outreach** to view the auto-approved messages and click **Open in Gmail**, **Open Instagram**, or **Open WhatsApp** to launch the prefilled message.
+Set `API_BASE_URL` only when the frontend must call a separate backend origin instead of a same-origin proxy.
 
-### Troubleshooting Failed Jobs
-- Inspect the **Autonomous Pipeline** dashboard card on the Leads page to view failed count and recent logs.
-- Click the **Retry** button in the Leads table on any failed row to re-enqueue from the failed stage without losing existing research data.
-- After a server restart, pending or interrupted jobs are automatically detected and recovered by `recoverPendingJobs()`.
+## Autonomous Pipeline
+
+Leads can be uploaded and processed through the application workflow:
+
+1. Import leads from CSV or Google Sheets.
+2. Select an outreach channel: Gmail, Instagram, or WhatsApp.
+3. The pipeline runs web research, AI qualification, draft generation, and approval stages.
+4. Open approved outreach drafts through the appropriate external channel.
+5. Monitor failures and retry interrupted work from the Leads interface.
+
+Pending, failed, and interrupted jobs should be recoverable across restarts. Verify migration `006` and `007` are applied before enabling these workflows.
+
+## Security Notes
+
+- Authentication is protected by a bcrypt password hash and secure server-side session handling.
+- Supabase service-role credentials are never intended for browser code.
+- Review outbound outreach before sending or launching it externally.
+- Keep SMTP and API credentials in deployment environment variables.
+- Enable only the integrations required by your deployment.
+
+## License
+
+No license is currently specified for this repository.
