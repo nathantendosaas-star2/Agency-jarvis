@@ -1,14 +1,13 @@
 name: Agency Jarvis Autonomous Cycle
-"on":
+on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       force_run:
-        description: Run now, ignoring the persisted schedule (still uses the DB lock)
+        description: Force a cycle now, while the global schedule is enabled
         required: false
-        type: boolean
-        default: false
+        default: "false"
 permissions:
   contents: read
 concurrency:
@@ -38,8 +37,8 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           AI_PROVIDER: ${{ vars.AI_PROVIDER }}
-          AGENT_FORCE_RUN: ${{ inputs.force_run && 'true' || 'false' }}
-          AGENT_TRIGGER: ${{ github.event_name == 'workflow_dispatch' && 'manual' || 'schedule' }}
+          AGENT_FORCE_RUN: ${{ github.event.inputs.force_run || 'false' }}
+          AGENT_TRIGGER: ${{ github.event_name }}
           AGENT_MAX_RUNTIME_SECONDS: "420"
           AGENT_MAX_TASKS: "10"
         run: node scripts/agent-runner.js
