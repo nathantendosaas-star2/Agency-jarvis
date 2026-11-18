@@ -70,7 +70,7 @@ async function run() {
   let processed = 0, completed = 0, failed = 0;
   try {
     const { data, error } = await supabase.from("agent_runs").insert({
-      trigger_type: process.env.AGENT_TRIGGER === "manual" || process.env.AGENT_FORCE_RUN === "true" ? "manual" : "schedule",
+      trigger_type: process.env.AGENT_TRIGGER === "workflow_dispatch" || process.env.AGENT_TRIGGER === "manual" || process.env.AGENT_FORCE_RUN === "true" ? "manual" : "schedule",
       status: "running",
       metadata: { worker_id: WORKER_ID, github_run_id: process.env.GITHUB_RUN_ID || null }
     }).select().single();
