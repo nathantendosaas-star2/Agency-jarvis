@@ -39,6 +39,27 @@ async function claimTask(workerId, leaseSeconds = 300) {
   return Array.isArray(data) ? (data[0] || null) : data;
 }
 
+async function recoverExpiredTasks() {
+  const now = new Date().toISOString();
+  const { data, error } = await getSupabaseClient().from("agent_tasks")
+    .select("id,attempts,max_attempts")
+    .eq("status", "running").lt("lease_expires_at", now).limit(100);
+  if (error) throw error;
+  let recovered = 0;
+  for (const task of data || []) {
+    const exhausted = Number(task.attempts) >= Number(task.max_attempts);
+    const { error: updateError } = await getSupabaseClient().from("agent_tasks").update({
+      status: exhausted ? "failed" : "pending",
+      error: "Worker lease expired; task recovered.",
+      next_attempt_at: new Date(Date.now() + Math.min(3600, 15 * (2 ** Math.min(Number(task.attempts) || 1, 8))) * 1000).toISOString(),
+      locked_at: null, locked_by: null, lease_expires_at: null, updated_at: now
+    }).eq("id", task.id).eq("status", "running").lt("lease_expires_at", now);
+    if (updateError) throw updateError;
+    recovered += 1;
+  }
+  return recovered;
+}
+
 async function finishTask(task, workerId, output) {
   const { data, error } = await getSupabaseClient().from("agent_tasks").update({
     status: "completed", output, error: null, completed_at: new Date().toISOString(),
@@ -60,4 +81,4 @@ async function failTask(task, workerId, err) {
   if (error) throw error;
 }
 
-module.exports = { LOCK_ID, writeLog, getSchedule, acquireLock, releaseLock, claimTask, finishTask, failTask };
+module.exports = { LOCK_ID, writeLog, getSchedule, acquireLock, releaseLock, claimTask, recoverExpiredTasks, finishTask, failTask };
