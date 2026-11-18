@@ -38,7 +38,7 @@
     byId("metric-search").textContent=usage.searches??0;
     byId("metric-tokens").textContent=(Number(usage.inputTokens||0)+Number(usage.outputTokens||0)).toLocaleString();
     byId("metric-cost").textContent=money(usage.costUsd);
-    byId("pricing-state").textContent=data.pricingConfigured?"Present on web host":"Not set on web host";
+    byId("pricing-state").textContent="GitHub Actions secret";
     byId("paid-state").textContent=schedule.allow_paid_models?"Enabled":"Disabled";
     byId("budget-state").textContent=money(schedule.daily_budget_usd);
     byId("workbench-queue").textContent=data.legacyQueues?.workbench??0;
