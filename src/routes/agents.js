@@ -40,7 +40,6 @@ function createAgentsRouter(){
       return res.json({
         schedule:schedule.data,agents:agents.data||[],runs:runs.data||[],tasks:tasks.data||[],
         usageToday:today,legacyQueues:{workbench:workbench.count||0,leadPipeline:leadQueue.count||0},
-        pricingConfigured:Boolean(process.env.AGENT_MODEL_PRICING_JSON)
       });
     }catch(error){return missingSchema(error)?unavailable(res,error):res.status(500).json({error:"Failed to load autonomous operations."});}
   });
