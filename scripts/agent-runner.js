@@ -3,7 +3,7 @@ require("dotenv").config();
 const crypto = require("node:crypto");
 const { getSupabaseClient } = require("../src/config/supabase");
 const {
-  writeLog, getSchedule, acquireLock, releaseLock, claimTask, finishTask, failTask
+  writeLog, getSchedule, acquireLock, releaseLock, claimTask, recoverExpiredTasks, finishTask, failTask
 } = require("../src/services/autonomousExecutionService");
 
 const WORKER_ID = `gha-${process.env.GITHUB_RUN_ID || "manual"}-${crypto.randomUUID()}`;
@@ -74,6 +74,8 @@ async function run() {
     runRecord = data;
 
     await writeLog({ runId: runRecord.id, eventType: "run_started", message: "Autonomous execution cycle started.", metadata: { workerId: WORKER_ID } });
+    const recovered = await recoverExpiredTasks();
+    if (recovered) await writeLog({ runId: runRecord.id, severity: "warn", eventType: "tasks_recovered", message: "Recovered " + recovered + " expired task lease(s)." });
 
     while (!stopping && processed < Math.min(MAX_TASKS, Number(schedule.max_tasks_per_run || MAX_TASKS))
       && (Date.now() - started) < Math.min(MAX_RUNTIME_SECONDS, Number(schedule.max_runtime_seconds || MAX_RUNTIME_SECONDS)) * 1000) {
