@@ -9,10 +9,10 @@ const { createLeadsRouter } = require("./src/routes/leads");
 const { createClientsRouter } = require("./src/routes/clients");
 const { createOutreachRouter } = require("./src/routes/outreach");
 const { createWorkbenchRouter } = require("./src/routes/workbench");
-const { startWorkbenchWorker } = require("./src/services/workbenchService");
 const { createSocialRouter } = require("./src/routes/social");
 const { createApprovalsRouter } = require("./src/routes/approvals");
 const { createDashboardRouter } = require("./src/routes/dashboard");
+const { createAgentsRouter } = require("./src/routes/agents");
 const { createSettingsRouter } = require("./src/routes/settings");
 const { requireAdmin } = require("./src/middleware/auth");
 
@@ -95,6 +95,7 @@ app.use("/api/auth", createAuthRouter());
 app.use(requireAdmin);
 
 app.use("/api/dashboard", createDashboardRouter());
+app.use("/api/agents", createAgentsRouter());
 app.use("/api/leads", createLeadsRouter());
 app.use("/api/clients", createClientsRouter());
 app.use("/api/outreach", createOutreachRouter());
@@ -112,21 +113,11 @@ app.use(express.static(publicDirectory, {
 app.use("/api", (_req, res) => res.status(404).json({ error: "API endpoint not found." }));
 app.use((_req, res) => res.status(404).sendFile(path.join(publicDirectory, "404.html")));
 
-const { recoverPendingJobs } = require("./src/services/leadPipelineService");
 
 if (require.main === module) {
   app.listen(PORT, "0.0.0.0", async () => {
     console.log(`Agency Jarvis is running on port ${PORT}`);
-    try {
-      await recoverPendingJobs();
-      const leadRecoveryTimer = setInterval(() => {
-        recoverPendingJobs().catch((err) => console.warn("Lead queue recovery check failed:", err.message));
-      }, 30000);
-      if (typeof leadRecoveryTimer.unref === "function") leadRecoveryTimer.unref();
-      startWorkbenchWorker();
-    } catch (err) {
-      console.warn("Could not recover pending jobs on startup:", err.message);
-    }
+    console.log("Background queues are owned by scripts/agent-runner.js; this web process does not execute queue jobs.");
   });
 }
 

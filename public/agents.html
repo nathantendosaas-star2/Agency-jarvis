@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Jarvis | Autonomous Operations</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/agents.css">
+  <script src="/js/app.js" defer></script>
+  <script src="/js/agents.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="/"><span class="brand-mark">J</span><span>AGENCY <strong>JARVIS</strong></span></a>
+    <p class="nav-label">WORKSPACE</p>
+    <nav class="nav">
+      <a class="nav-link" href="/">Overview</a>
+      <a class="nav-link" href="/leads.html">Leads</a>
+      <a class="nav-link" href="/outreach.html">Outreach</a>
+      <a class="nav-link" href="/workbench.html">Workbench</a>
+      <a class="nav-link active" href="/agents.html">Autonomous Ops</a>
+      <a class="nav-link" href="/social.html">Social</a>
+    </nav>
+    <p class="nav-label">SYSTEM</p><nav class="nav"><a class="nav-link" href="/settings.html">Settings</a></nav>
+    <div class="sidebar-footer"><span class="status-dot"></span> Owner controlled</div>
+  </aside>
+  <main class="main-content">
+    <header class="topbar"><div><p class="eyebrow">AGENCY OPERATIONS</p><h1>Autonomous Operations</h1></div><span id="ops-system-status" class="status-pill">Loading…</span></header>
+    <section class="welcome-panel ops-welcome">
+      <div><p class="eyebrow">JARVIS EXECUTION CONTROL</p><h2>One queue. Six specialists. Owner-controlled limits.</h2>
+      <p class="muted">Scheduled runs are dispatched by GitHub Actions and recorded in Supabase. Lead qualification and external messages remain human-controlled.</p></div>
+      <div class="welcome-orb">J</div>
+    </section>
+    <div id="ops-notice" class="notice ops-notice" role="status">Loading autonomous system data…</div>
+
+    <section class="dashboard-stats-grid ops-stats">
+      <div class="stat-card"><p class="eyebrow">AI REQUESTS TODAY</p><div id="metric-ai" class="stat-value">—</div><p class="stat-note">Recorded provider calls</p></div>
+      <div class="stat-card"><p class="eyebrow">SEARCHES TODAY</p><div id="metric-search" class="stat-value">—</div><p class="stat-note">Recorded searches</p></div>
+      <div class="stat-card"><p class="eyebrow">TOKEN USAGE TODAY</p><div id="metric-tokens" class="stat-value">—</div><p class="stat-note">Input + output tokens</p></div>
+      <div class="stat-card"><p class="eyebrow">ESTIMATED SPEND TODAY</p><div id="metric-cost" class="stat-value">$0.00</div><p class="stat-note">USD from recorded usage</p></div>
+    </section>
+
+    <section class="section-heading"><div><p class="eyebrow">AUTOMATION</p><h2>Global schedule & limits</h2></div><button id="ops-refresh" class="table-btn secondary">Refresh</button></section>
+    <section class="ops-grid">
+      <form id="schedule-form" class="workspace-card ops-panel">
+        <div class="card-header"><div><p class="eyebrow">RUN CONTROL</p><h3>Schedule</h3></div><span id="schedule-state" class="ops-state">Paused</span></div>
+        <label class="ops-toggle"><input id="schedule-enabled" type="checkbox"><span>Enable autonomous schedule</span></label>
+        <div class="form-grid">
+          <div class="form-group"><label for="schedule-interval">Run interval (minutes)</label><input id="schedule-interval" type="number" min="60" max="10080" value="300"></div>
+          <div class="form-group"><label for="daily-budget">Daily spend cap (USD)</label><input id="daily-budget" type="number" min="0" max="1000" step="0.01" value="0"></div>
+          <div class="form-group"><label for="daily-tasks">Daily task limit</label><input id="daily-tasks" type="number" min="1" max="500" value="20"></div>
+          <div class="form-group"><label for="daily-ai">Daily AI-call limit</label><input id="daily-ai" type="number" min="1" max="5000" value="100"></div>
+          <div class="form-group"><label for="daily-search">Daily search limit</label><input id="daily-search" type="number" min="0" max="5000" value="50"></div>
+          <div class="form-group"><label for="max-tasks">Maximum tasks per run</label><input id="max-tasks" type="number" min="1" max="100" value="10"></div>
+          <div class="form-group"><label for="max-runtime">Maximum runtime (seconds)</label><input id="max-runtime" type="number" min="30" max="900" value="420"></div>
+        </div>
+        <label class="ops-toggle ops-warning"><input id="allow-paid" type="checkbox"><span>Allow paid AI models (requires positive budget)</span></label>
+        <p class="ops-help">Default is paused, zero USD budget and paid models off. Set explicit model/search pricing in the GitHub Actions secret before running provider-backed tasks.</p>
+        <button class="action-button primary-btn" type="submit">Save schedule & limits</button>
+      </form>
+      <div class="workspace-card ops-panel">
+        <div class="card-header"><div><p class="eyebrow">COST SAFETY</p><h3>Usage policy</h3></div></div>
+        <div class="ops-policy-row"><span>Pricing config (web host)</span><strong id="pricing-state">Checking…</strong></div>
+        <div class="ops-policy-row"><span>Paid model access</span><strong id="paid-state">Disabled</strong></div>
+        <div class="ops-policy-row"><span>Daily budget</span><strong id="budget-state">$0.00</strong></div>
+        <div class="ops-policy-row"><span>Workbench legacy queue</span><strong id="workbench-queue">—</strong></div>
+        <div class="ops-policy-row"><span>Lead pipeline legacy queue</span><strong id="lead-queue">—</strong></div>
+        <p class="ops-help">Unknown model prices are blocked before a provider request. The server reserves quota and estimated spend, then settles actual token counts and reported/configured cost.</p>
+      </div>
+    </section>
+
+    <section class="section-heading"><div><p class="eyebrow">SPECIALISTS</p><h2>Six specialist agents</h2></div></section>
+    <section id="agent-grid" class="ops-agent-grid"><p class="state-message">Loading agents…</p></section>
+
+    <section class="section-heading"><div><p class="eyebrow">QUEUE MANAGER</p><h2>Queue a task</h2></div></section>
+    <form id="task-form" class="workspace-card ops-panel">
+      <div class="form-grid">
+        <div class="form-group"><label for="task-agent">Specialist</label><select id="task-agent">
+          <option value="discovery">Discovery</option><option value="research">Business Research</option>
+          <option value="lead_reviewer">Lead Reviewer</option><option value="outreach">Outreach Strategist</option>
+          <option value="workbench">Workbench</option><option value="operations">Operations & Reporting</option>
+        </select></div>
+        <div class="form-group"><label for="task-lead-id">Lead ID (research/review/outreach)</label><input id="task-lead-id" placeholder="UUID of an existing lead"></div>
+        <div class="form-group ops-wide"><label for="task-payload">Instructions / discovery query</label><textarea id="task-payload" rows="4" placeholder="Discovery: premium beauty clinics in Kampala&#10;Workbench: prepare a premium brand strategy for a Kampala spa"></textarea></div>
+      </div>
+      <p class="ops-help">Discovery and Workbench use free-text instructions. Research, reviewer and outreach require a lead ID. Outreach also requires a human-qualified lead.</p>
+      <button class="action-button primary-btn" type="submit">Add task to queue</button>
+    </form>
+
+    <section class="section-heading"><div><p class="eyebrow">EXECUTION HISTORY</p><h2>Recent runs</h2></div></section>
+    <div id="runs-container" class="table-container"><p class="state-message">Loading runs…</p></div>
+    <section class="section-heading"><div><p class="eyebrow">TASK QUEUE</p><h2>Recent tasks</h2></div></section>
+    <div id="tasks-container" class="table-container"><p class="state-message">Loading tasks…</p></div>
+    <footer class="page-footer">AGENCY JARVIS <span>Human approval required for qualification and external outreach.</span></footer>
+  </main>
+</div>
+</body></html>
