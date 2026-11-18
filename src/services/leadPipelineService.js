@@ -203,15 +203,23 @@ async function processLeadAutonomousWorkflow(leadId, currentStage = "research_pe
     await updateLead(leadId, {
       research_status: "completed",
       qualification_score: evaluation.qualification_score,
-      lead_status: evaluation.qualification_score >= 60 ? "qualified" : "researched",
+      lead_status: "needs_review",
       processing_stage: "review_completed",
       processing_error: null
     });
-    await logActivity("pipeline_stage_completed", `Completed review for ${lead.business_name} (Score: ${evaluation.qualification_score})`, {
+    await logActivity("pipeline_stage_completed", `Completed research for ${lead.business_name}; human qualification review required`, {
       entityType: "leads",
       entityId: leadId,
-      metadata: { score: evaluation.qualification_score }
+      metadata: { score: evaluation.qualification_score, qualificationStatus: "needs_review" }
     });
+    return { success: true, leadId, needsReview: true, qualificationScore: evaluation.qualification_score };
+  }
+
+  // Draft generation is permitted only after a human or separately verified reviewer
+  // explicitly sets the lead to qualified. An AI score alone is not sufficient.
+  const currentLead = await getLeadById(leadId);
+  if (!currentLead || currentLead.lead_status !== "qualified") {
+    return { success: true, leadId, needsReview: true, reason: "Lead has not passed explicit qualification." };
   }
 
   // Stage 5 & 6: Tailored Outreach Draft Generation
