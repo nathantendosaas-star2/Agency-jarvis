@@ -47,7 +47,21 @@ async function runWorkbenchTask({ prompt, taskType, clientId = null, leadId = nu
   await logActivity("workbench_task_queued", `Queued Workbench task: ${initialRecord.task_type}`, {
     entityType: "workbench", entityId: data.id
   });
-  kickWorkbenchWorker();
+  const queue = getSupabaseClient().from("agent_tasks");
+  if (typeof queue.upsert === "function") {
+    const { error: queueError } = await queue.upsert([{
+      agent_id:"workbench",task_type:"workbench",
+      payload:{prompt:prompt.trim(),taskType:taskType||"auto",clientId:clientId||null,leadId:leadId||null},
+      source_queue:"workbench_tasks",source_task_id:data.id,
+      idempotency_key:"legacy:workbench:"+data.id
+    }],{onConflict:"idempotency_key",ignoreDuplicates:true});
+    if (queueError) {
+      await getSupabaseClient().from("workbench_tasks").update({
+        status:"failed",error_message:"Autonomous queue enqueue failed: "+queueError.message
+      }).eq("id",data.id);
+      throw queueError;
+    }
+  }
   return data;
 }
 
@@ -139,21 +153,12 @@ async function recoverWorkbenchTasks() {
   if (error) console.warn("Could not recover interrupted Workbench tasks:", error.message);
 }
 
-function kickWorkbenchWorker() {
-  if (workerTimer) return;
-  workerTimer = setTimeout(() => {
-    workerTimer = null;
-    processWorkbenchQueue();
-  }, 50);
-}
+// The standalone autonomous runner is the only queue consumer.
+function kickWorkbenchWorker() { return false; }
 
 function startWorkbenchWorker() {
-  if (workerTimer) return;
-  recoverWorkbenchTasks().finally(() => {
-    workerTimer = setInterval(processWorkbenchQueue, POLL_INTERVAL_MS);
-    if (typeof workerTimer.unref === "function") workerTimer.unref();
-    processWorkbenchQueue();
-  });
+  // Intentionally disabled: never run a competing worker inside the web process.
+  return false;
 }
 
 module.exports = {

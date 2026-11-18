@@ -60,20 +60,31 @@ async function enqueueLeadJob(leadId, stage = "research_pending") {
     metadata: { stage, jobId: data.id }
   });
 
-  // Trigger worker check
-  triggerQueueWorker();
+  const taskAgent = stage === "draft_generation_pending" || stage === "generating_draft"
+    ? "outreach" : (stage === "review_completed" ? "lead_reviewer" : "research");
+  const queue = supabase.from("agent_tasks");
+  if (typeof queue.upsert === "function") {
+    const { error: queueError } = await queue.upsert([{
+      agent_id:taskAgent,task_type:taskAgent,
+      payload:{leadId,stage,leadPipelineJobId:data.id},
+      source_queue:"lead_pipeline_jobs",source_task_id:data.id,
+      idempotency_key:"legacy:lead:"+data.id
+    }],{onConflict:"idempotency_key",ignoreDuplicates:true});
+    if (queueError) {
+      await supabase.from("lead_pipeline_jobs").update({
+        status:"failed",error_message:"Autonomous queue enqueue failed: "+queueError.message
+      }).eq("id",data.id);
+      throw queueError;
+    }
+  }
   return data;
 }
 
 /**
  * Triggers the background worker with debouncing
  */
-function triggerQueueWorker() {
-  if (queueTimeoutId) clearTimeout(queueTimeoutId);
-  queueTimeoutId = setTimeout(() => {
-    processNextLeadJob().catch((err) => console.error("Worker processing error:", err.message));
-  }, 100);
-}
+// The standalone autonomous runner is the only queue consumer.
+function triggerQueueWorker() { return false; }
 
 /**
  * Recover any jobs that were abandoned or processing during a server restart.

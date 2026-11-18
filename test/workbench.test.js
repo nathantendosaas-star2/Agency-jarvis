@@ -58,8 +58,12 @@ test("Workbench Task Orchestration", async (t) => {
       }
     });
 
+    const mirroredTasks = [];
     setSupabaseClient({
       from(table) {
+        if (table === "agent_tasks") {
+          return { upsert: async (rows) => { mirroredTasks.push(...rows); return { error: null }; } };
+        }
         if (table === "workbench_tasks") {
           return {
             insert(record) {
@@ -90,5 +94,9 @@ test("Workbench Task Orchestration", async (t) => {
     assert.strictEqual(task.status, "pending");
     assert.strictEqual(task.task_type, "redesign_brief");
     assert.strictEqual(task.prompt, "Redesign brief for local dental clinic");
+    assert.strictEqual(mirroredTasks.length, 1);
+    assert.strictEqual(mirroredTasks[0].agent_id, "workbench");
+    assert.strictEqual(mirroredTasks[0].source_queue, "workbench_tasks");
+    assert.strictEqual(mirroredTasks[0].idempotency_key, "legacy:workbench:task-1");
   });
 });
