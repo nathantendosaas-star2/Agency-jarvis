@@ -247,7 +247,7 @@ Brand New Business,owner@newbiz.com,https://newbiz.com`;
     assert.strictEqual(gmailDraft.subject_lines.length, 3);
   });
 
-  await t.test("5. Autonomous pipeline runs end-to-end and automatically approves valid draft", async () => {
+  await t.test("5. AI research routes leads to human review without creating or approving outreach", async () => {
     const memory = {
       lead: {
         id: "lead-auto-1",
@@ -397,20 +397,14 @@ Brand New Business,owner@newbiz.com,https://newbiz.com`;
 
     const result = await processLeadAutonomousWorkflow(memory.lead.id);
     assert.strictEqual(result.success, true);
-    assert.strictEqual(memory.lead.processing_stage, "draft_approved");
+    assert.strictEqual(result.needsReview, true);
+    assert.strictEqual(memory.lead.processing_stage, "review_completed");
+    assert.strictEqual(memory.lead.lead_status, "needs_review");
     assert.strictEqual(memory.lead.qualification_score, 85);
 
-    // Verify outreach record was created with auto-approval metadata
-    assert.strictEqual(memory.outreach.length, 1);
-    const savedOutreach = memory.outreach[0];
-    assert.strictEqual(savedOutreach.is_auto_approved, true);
-    assert.strictEqual(savedOutreach.channel, "gmail");
-    assert.strictEqual(savedOutreach.model_used, "gemini-3.5-flash-lite");
-
-    // Verify approval record was created and pre-approved
-    assert.strictEqual(memory.approvals.length, 1);
-    assert.strictEqual(memory.approvals[0].status, "approved");
-    assert.strictEqual(memory.approvals[0].decision_notes, "Automatically approved by autonomous pipeline");
+    // An AI score alone must not qualify a lead or create an outreach draft.
+    assert.strictEqual(memory.outreach.length, 0);
+    assert.strictEqual(memory.approvals.length, 0);
   });
 
   await t.test("6. Failed outreach generation does not approve an incomplete draft and sets failed stage", async () => {
@@ -419,7 +413,8 @@ Brand New Business,owner@newbiz.com,https://newbiz.com`;
         id: "lead-fail-1",
         business_name: "Broken Lead",
         processing_stage: "draft_generation_pending",
-        research_status: "completed"
+        research_status: "completed",
+        lead_status: "qualified"
       },
       research: { summary: "Some summary" },
       outreach: [],

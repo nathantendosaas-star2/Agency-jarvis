@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "agent:run": "node scripts/agent-runner.js",
     "dev": "node --watch server.js",
     "hash-password": "node scripts/hash-password.js",
     "test": "node --test test/*.test.js"

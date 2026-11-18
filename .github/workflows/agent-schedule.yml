@@ -1,0 +1,44 @@
+name: Agency Jarvis Autonomous Cycle
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: Force a cycle now, while the global schedule is enabled
+        required: false
+        default: "false"
+permissions:
+  contents: read
+concurrency:
+  group: agency-jarvis-autonomous-runner
+  cancel-in-progress: false
+jobs:
+  autonomous-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate required configuration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node -e "for (const k of ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY']) if (!process.env[k]) { console.error('Missing GitHub secret: '+k); process.exit(1) }"
+      - name: Run due autonomous tasks
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          AGENT_FORCE_RUN: ${{ github.event.inputs.force_run || 'false' }}
+          AGENT_TRIGGER: ${{ github.event_name }}
+          AGENT_MAX_RUNTIME_SECONDS: "420"
+          AGENT_MAX_TASKS: "10"
+        run: node scripts/agent-runner.js

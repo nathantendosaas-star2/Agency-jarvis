@@ -58,12 +58,37 @@ test("Workbench Task Orchestration", async (t) => {
       }
     });
 
+    setSupabaseClient({
+      from(table) {
+        if (table === "workbench_tasks") {
+          return {
+            insert(record) {
+              return { select: () => ({ single: async () => ({ data: { id: "task-1", ...record }, error: null }) }) };
+            },
+            select() {
+              const query = {
+                eq() { return query; },
+                order() { return query; },
+                limit: async () => ({ data: [], error: null })
+              };
+              return query;
+            }
+          };
+        }
+        if (table === "activity_logs") {
+          return { insert: () => ({ select: () => ({ single: async () => ({ data: {}, error: null }) }) }) };
+        }
+        return {};
+      }
+    });
+
     const task = await runWorkbenchTask({
       prompt: "Redesign brief for local dental clinic",
       taskType: "redesign_brief"
     });
 
-    assert.strictEqual(task.status, "completed");
-    assert.ok(task.result.includes("Website Redesign Brief"));
+    assert.strictEqual(task.status, "pending");
+    assert.strictEqual(task.task_type, "redesign_brief");
+    assert.strictEqual(task.prompt, "Redesign brief for local dental clinic");
   });
 });
