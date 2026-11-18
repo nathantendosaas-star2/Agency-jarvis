@@ -51,7 +51,11 @@ async function run() {
   const supabase = getSupabaseClient();
   const started = Date.now();
   const schedule = await getSchedule();
-  if (process.env.AGENT_FORCE_RUN !== "true" && (!schedule.enabled || new Date(schedule.next_run_at).getTime() > Date.now())) {
+  if (!schedule.enabled) {
+    console.log("Autonomous system is paused; exiting without processing.");
+    return { skipped: true, disabled: true };
+  }
+  if (process.env.AGENT_FORCE_RUN !== "true" && new Date(schedule.next_run_at).getTime() > Date.now()) {
     console.log("No autonomous cycle due; exiting without processing.");
     return { skipped: true };
   }
