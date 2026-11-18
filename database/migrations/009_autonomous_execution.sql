@@ -153,7 +153,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE acquired BOOLEAN;
+DECLARE affected INTEGER;
 BEGIN
   INSERT INTO public.agent_locks(lock_id,owner,acquired_at,expires_at)
   VALUES(p_lock_id,p_owner,now(),now()+make_interval(secs=>GREATEST(30,LEAST(p_lease_seconds,1800))))
@@ -161,8 +161,8 @@ BEGIN
     SET owner=EXCLUDED.owner,acquired_at=now(),expires_at=EXCLUDED.expires_at
     WHERE public.agent_locks.expires_at < now()
        OR public.agent_locks.owner = p_owner;
-  GET DIAGNOSTICS acquired = ROW_COUNT;
-  RETURN acquired;
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected > 0;
 END;
 $$;
 
@@ -172,11 +172,11 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE released BOOLEAN;
+DECLARE affected INTEGER;
 BEGIN
   DELETE FROM public.agent_locks WHERE lock_id=p_lock_id AND owner=p_owner;
-  GET DIAGNOSTICS released = ROW_COUNT;
-  RETURN released;
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected > 0;
 END;
 $$;
 
